@@ -1,0 +1,995 @@
+{
+  "knowledge_base": {
+    "name": "ErtiPay AI Customer Support Knowledge Base",
+    "version": "1.0.0",
+    "last_updated": "2026-09-19",
+    "purpose": "Provide accurate, consistent and customer-friendly information about ErtiPay and its services.",
+    "language_support": [
+      "English"
+    ]
+  },
+
+  "company": {
+    "name": "Ertitech Solutions Private Limited",
+    "short_name": "Ertitech",
+    "entity_type": "Company",
+    "industry": "Fintech and Payment Technology",
+    "website": "https://www.ertitech.com/",
+    "email": "hello@ertitech.com",
+    "whatsapp": "+91 8122686806",
+    "phone": "+91 8122686806",
+    "support_hours": "Business days 10:00 AM – 6:30 PM IST",
+    "description": "Ertitech Solutions Private Limited is a fintech technology company that develops and provides payment, collection, payout, banking API and financial technology solutions.",
+    "brands_and_products": [
+      {
+        "name": "ErtiPay",
+        "type": "Product",
+        "description": "Digital payment and financial services product developed and operated by Ertitech Solutions Private Limited."
+      }
+    ]
+  },
+
+  "product": {
+    "name": "ErtiPay",
+    "type": "Product",
+    "company": "Ertitech Solutions Private Limited",
+    "is_company": false,
+    "is_independent_company": false,
+    "description": "ErtiPay is a digital payment product developed by Ertitech Solutions Private Limited. It provides users with digital payment, QR payment, bill payment, recharge and reward-related services.",
+    "target_users": [
+      "Individual customers",
+      "Digital payment users",
+      "Customers making utility bill payments",
+      "Mobile recharge users",
+      "DTH recharge users",
+      "QR payment users",
+      "Eligible reward users",
+      "Merchants and business users where applicable"
+    ],
+    "platforms": [
+      "Android",
+      "iOS"
+    ]
+  },
+
+  "product_identity_rules": {
+    "correct": [
+      "ErtiPay is a product of Ertitech Solutions Private Limited.",
+      "ErtiPay is developed and operated by Ertitech Solutions Private Limited.",
+      "Ertitech Solutions Private Limited is the company behind ErtiPay.",
+      "ErtiPay is a digital payment product."
+    ],
+    "incorrect": [
+      "ErtiPay is a company.",
+      "ErtiPay is a separate company from Ertitech.",
+      "Ertitech is a product of ErtiPay.",
+      "ErtiPay owns Ertitech."
+    ],
+    "ai_rule": "Always distinguish the company Ertitech Solutions Private Limited from the product ErtiPay."
+  },
+
+  "ertipay": {
+    "overview": {
+      "name": "ErtiPay",
+      "type": "Digital Payment Product",
+      "developed_by": "Ertitech Solutions Private Limited",
+      "purpose": "Provide convenient digital payment, bill payment, recharge, QR payment and related services.",
+      "primary_experience": "Mobile-first digital payment experience."
+    },
+
+    "core_features": [
+      {
+        "name": "UPI Payments",
+        "description": "ErtiPay supports supported UPI payment experiences."
+      },
+      {
+        "name": "QR Payments",
+        "description": "Users can make supported payments by scanning QR codes."
+      },
+      {
+        "name": "Dynamic QR",
+        "description": "ErtiPay supports dynamic QR payment functionality where enabled."
+      },
+      {
+        "name": "Static QR",
+        "description": "ErtiPay supports static QR payment functionality where enabled."
+      },
+      {
+        "name": "Mobile Recharge",
+        "description": "Users can recharge supported prepaid mobile connections."
+      },
+      {
+        "name": "DTH Recharge",
+        "description": "Users can recharge supported DTH services."
+      },
+      {
+        "name": "Bill Payments",
+        "description": "Users can pay supported utility and bill-payment services."
+      },
+      {
+        "name": "Transaction History",
+        "description": "Users can view supported payment and transaction information."
+      },
+      {
+        "name": "Transaction Status",
+        "description": "Users can check the status of supported transactions."
+      },
+      {
+        "name": "Rewards",
+        "description": "ErtiPay provides reward-related functionality for eligible users and transactions."
+      },
+      {
+        "name": "Reward Shops",
+        "description": "Eligible reward campaigns may involve participating reward shops."
+      },
+      {
+        "name": "Reward Claims",
+        "description": "Eligible users may be able to claim rewards according to the applicable reward rules."
+      },
+      {
+        "name": "Location-Based Reward Features",
+        "description": "Certain reward workflows may use location and image information for claim verification."
+      },
+      {
+        "name": "Notifications",
+        "description": "ErtiPay can provide notifications related to supported payment and service activities."
+      }
+    ]
+  },
+
+  "payment_services": {
+    "upi": {
+      "name": "UPI Payments",
+      "enabled": true,
+      "description": "UPI enables supported digital payment transactions through ErtiPay.",
+      "features": [
+        "UPI payment initiation",
+        "Supported UPI payment flows",
+        "Payment status tracking",
+        "QR-based payment experiences"
+      ]
+    },
+
+    "qr_payment": {
+      "name": "QR Payments",
+      "enabled": true,
+      "description": "Users can scan supported merchant QR codes and make payments.",
+      "types": [
+        "Static QR",
+        "Dynamic QR"
+      ],
+      "basic_flow": [
+        "Open QR payment functionality",
+        "Scan the supported QR code",
+        "Review payment information",
+        "Confirm the payment",
+        "Complete authentication where required",
+        "View transaction status"
+      ]
+    },
+
+    "mobile_recharge": {
+      "name": "Mobile Recharge",
+      "enabled": true,
+      "description": "Users can recharge supported prepaid mobile connections.",
+      "basic_flow": [
+        "Open Mobile Recharge",
+        "Enter mobile number",
+        "Select operator",
+        "Select circle where required",
+        "Select a plan or enter the recharge amount",
+        "Review details",
+        "Confirm payment",
+        "Check recharge transaction status"
+      ],
+      "common_issues": [
+        "Recharge failed",
+        "Recharge pending",
+        "Recharge not reflected",
+        "Operator unavailable",
+        "Provider server issue",
+        "Amount deducted but recharge not completed",
+        "Incorrect plan selection"
+      ]
+    },
+
+    "dth_recharge": {
+      "name": "DTH Recharge",
+      "enabled": true,
+      "description": "Users can recharge supported DTH services.",
+      "basic_flow": [
+        "Open DTH Recharge",
+        "Select operator",
+        "Enter customer or subscriber information",
+        "Enter or select recharge amount",
+        "Review details",
+        "Confirm payment",
+        "Check transaction status"
+      ]
+    },
+
+    "bill_payment": {
+      "name": "Bill Payments",
+      "enabled": true,
+      "description": "ErtiPay supports supported bill-payment services through its bill-payment infrastructure.",
+      "categories": [
+        "Electricity",
+        "Water",
+        "Gas",
+        "Mobile Postpaid",
+        "DTH",
+        "Broadband",
+        "FASTag",
+        "Other supported utility categories"
+      ],
+      "basic_flow": [
+        "Select bill-payment category",
+        "Select biller",
+        "Enter required customer information",
+        "Fetch bill where supported",
+        "Review bill details",
+        "Validate bill where applicable",
+        "Confirm payment",
+        "Process payment",
+        "View transaction status",
+        "View receipt or transaction information"
+      ]
+    },
+
+    "fastag": {
+      "name": "FASTag",
+      "enabled": true,
+      "description": "FASTag-related recharge or bill-payment functionality may be available through supported providers.",
+      "important_rule": "If a FASTag provider or biller is temporarily unavailable, the AI must identify it as a provider-side issue when verified by the system."
+    }
+  },
+
+  "bbps": {
+    "name": "BBPS",
+    "full_name": "Bharat Bill Payment System",
+    "description": "ErtiPay supports bill-payment workflows through BBPS-enabled infrastructure.",
+    "capabilities": [
+      "Biller discovery",
+      "Biller information",
+      "Bill fetching",
+      "Bill validation",
+      "Bill payment",
+      "Transaction status",
+      "Payment confirmation",
+      "Receipt information"
+    ],
+    "supported_workflow": [
+      "Select bill category",
+      "Select biller",
+      "Enter customer details",
+      "Fetch bill",
+      "Validate bill",
+      "Pay bill",
+      "Receive transaction status",
+      "Display confirmation"
+    ],
+    "provider_issue_rules": {
+      "provider_server_issue": "If the system confirms that the biller or provider server is unavailable, explain that the provider is temporarily unavailable.",
+      "do_not_blame_customer": true,
+      "do_not_invent_error": true,
+      "do_not_request_duplicate_payment": true
+    }
+  },
+
+  "recharge_services": {
+    "mobile": {
+      "supported": true,
+      "services": [
+        "Prepaid recharge",
+        "Supported mobile operators",
+        "Plan selection where available"
+      ]
+    },
+    "dth": {
+      "supported": true,
+      "services": [
+        "DTH recharge",
+        "Supported DTH operators"
+      ]
+    },
+    "recharge_rules": [
+      "Verify the transaction status before asking the user to retry.",
+      "Do not instruct the user to make another payment when the previous transaction is pending.",
+      "If money was deducted but recharge is not reflected, verify the transaction first.",
+      "If the provider is unavailable, explain the provider-side issue.",
+      "Do not invent recharge completion."
+    ]
+  },
+
+  "transaction_management": {
+    "purpose": "Help customers understand and troubleshoot payment and service transaction statuses.",
+    "possible_statuses": [
+      "INITIATED",
+      "PENDING",
+      "SUCCESS",
+      "FAILED",
+      "REFUNDED",
+      "CANCELLED"
+    ],
+    "rules": [
+      "Always use verified transaction information when available.",
+      "Never invent a transaction status.",
+      "Never claim a refund has been completed without verified information.",
+      "Never claim a transaction is successful without confirmation.",
+      "Do not tell users to pay again while the previous transaction status is uncertain.",
+      "For pending transactions, explain that the transaction is still being processed or awaiting confirmation.",
+      "For failed transactions, explain the available verified reason.",
+      "For successful transactions, provide the available reference information."
+    ]
+  },
+
+  "payment_issue_handling": {
+    "money_deducted_payment_failed": {
+      "steps": [
+        "Ask for transaction reference if not already available.",
+        "Check transaction status.",
+        "Do not ask the user to pay again immediately.",
+        "If refund is applicable, provide only the verified refund information.",
+        "Escalate if the transaction requires manual investigation."
+      ]
+    },
+
+    "payment_pending": {
+      "steps": [
+        "Confirm transaction reference.",
+        "Check current backend status.",
+        "Explain that the transaction is pending if confirmed.",
+        "Do not classify pending as failed.",
+        "Do not ask the user to make a duplicate payment.",
+        "Escalate if the pending transaction requires manual investigation."
+      ]
+    },
+
+    "payment_failed": {
+      "steps": [
+        "Verify failed status.",
+        "Provide the verified failure information.",
+        "Explain the next available action.",
+        "If money was deducted, verify refund or reversal status.",
+        "Escalate when required."
+      ]
+    },
+
+    "payment_success": {
+      "steps": [
+        "Confirm successful status.",
+        "Provide transaction/reference information where available.",
+        "If the external service has not reflected the payment, investigate the service/provider status."
+      ]
+    }
+  },
+
+  "rewards": {
+    "name": "ErtiPay Rewards",
+    "description": "ErtiPay includes reward-related functionality for eligible users.",
+    "features": [
+      "Reward campaigns",
+      "Reward eligibility",
+      "Reward shops",
+      "Reward claims",
+      "Location-related verification",
+      "Image capture for eligible claim workflows",
+      "Reward notifications"
+    ],
+    "claim_flow": [
+      "User becomes eligible for a reward",
+      "User opens the reward section",
+      "User reviews reward requirements",
+      "User visits or interacts with the eligible reward shop where applicable",
+      "Location may be verified where required",
+      "Image may be captured where required",
+      "Claim is submitted",
+      "System validates the claim",
+      "Reward status is updated"
+    ],
+    "rules": [
+      "Rewards are subject to applicable campaign rules.",
+      "Do not guarantee rewards unless eligibility is verified.",
+      "Do not promise a reward amount without verified campaign information.",
+      "Do not claim that every transaction automatically receives a reward."
+    ]
+  },
+
+  "account": {
+    "features": [
+      "User registration where supported",
+      "Secure login",
+      "Profile information",
+      "Transaction history",
+      "Payment services",
+      "Reward information",
+      "Notifications"
+    ],
+    "support_topics": [
+      "Login issues",
+      "Account access",
+      "Profile information",
+      "Transaction history",
+      "Service availability",
+      "Reward information"
+    ]
+  },
+
+  "merchant_and_business_ecosystem": {
+    "description": "Ertitech provides additional payment technology products and infrastructure for businesses. These services are part of the wider Ertitech ecosystem and should not automatically be described as consumer ErtiPay app features.",
+    "services": [
+      "Payment Gateway",
+      "PayIn",
+      "PayOut",
+      "QR Payments",
+      "Payment Links",
+      "Payment Pages",
+      "Smart Collect",
+      "API Banking",
+      "Merchant Onboarding",
+      "Merchant Dashboard",
+      "Transaction Monitoring",
+      "Settlement Management",
+      "Bulk Payouts",
+      "Individual Payouts"
+    ],
+    "important_rule": "When a customer asks about the ErtiPay mobile app, explain ErtiPay app features first. Do not mix internal Ertitech business infrastructure with consumer app features unless the question specifically asks about the wider Ertitech ecosystem."
+  },
+
+  "payment_gateway": {
+    "owner": "Ertitech Solutions Private Limited",
+    "product_category": "Business Payment Infrastructure",
+    "description": "Ertitech provides payment gateway infrastructure for businesses.",
+    "capabilities": [
+      "Online payment processing",
+      "Payment pages",
+      "Payment links",
+      "QR payments",
+      "Transaction management",
+      "Merchant integration",
+      "API integration",
+      "Settlement support"
+    ]
+  },
+
+  "payin": {
+    "owner": "Ertitech Solutions Private Limited",
+    "description": "PayIn infrastructure enables businesses to receive and manage incoming payments through supported payment methods.",
+    "capabilities": [
+      "Payment collection",
+      "Transaction tracking",
+      "Payment status",
+      "Merchant reporting",
+      "API integration"
+    ]
+  },
+
+  "payout": {
+    "owner": "Ertitech Solutions Private Limited",
+    "description": "Payout infrastructure enables merchants and businesses to disburse available merchant funds to beneficiaries through supported channels.",
+    "capabilities": [
+      "Beneficiary creation",
+      "Individual payouts",
+      "Bulk payouts",
+      "Fund transfers",
+      "Transaction status",
+      "Payout tracking",
+      "API-based payouts",
+      "Dashboard-based payouts"
+    ],
+    "fund_rule": "Merchant funds available for payout belong to the merchant. The platform facilitates disbursement according to the configured payout process.",
+    "security_rules": [
+      "Never expose API keys.",
+      "Never expose authentication tokens.",
+      "Never expose bank credentials.",
+      "Never expose beneficiary private information."
+    ]
+  },
+
+  "smart_collect": {
+    "owner": "Ertitech Solutions Private Limited",
+    "description": "Smart Collect is an Ertitech business payment collection solution.",
+    "capabilities": [
+      "Payment collection",
+      "Collection tracking",
+      "Transaction monitoring",
+      "Reconciliation support",
+      "API integration"
+    ]
+  },
+
+  "api_banking": {
+    "owner": "Ertitech Solutions Private Limited",
+    "description": "Ertitech provides API-based banking integrations for businesses requiring automated financial workflows.",
+    "capabilities": [
+      "Banking API integration",
+      "Automated financial workflows",
+      "Transaction processing",
+      "Financial system connectivity",
+      "Payment automation",
+      "Custom integrations"
+    ]
+  },
+
+  "customer_support": {
+    "purpose": "Help customers resolve ErtiPay-related questions and issues.",
+    "common_queries": [
+      "What is ErtiPay?",
+      "Who owns ErtiPay?",
+      "How do I make a payment?",
+      "How do I make a UPI payment?",
+      "How do I scan a QR?",
+      "How do I make a QR payment?",
+      "How do I recharge my mobile?",
+      "How do I recharge DTH?",
+      "How do I pay my electricity bill?",
+      "How do I pay my water bill?",
+      "How do I pay my gas bill?",
+      "How do I recharge FASTag?",
+      "How do I check my transaction?",
+      "Why is my transaction pending?",
+      "Why did my payment fail?",
+      "Money was deducted but payment failed",
+      "My recharge was successful but not reflected",
+      "My bill payment failed",
+      "The provider server is unavailable",
+      "How do I check rewards?",
+      "How do I claim a reward?",
+      "I need customer support"
+    ]
+  },
+
+  "ai_chatbot": {
+    "role": "ErtiPay customer support assistant",
+    "objective": "Understand customer questions, provide accurate information, troubleshoot common issues and escalate unresolved issues to human support.",
+    
+    "identity": {
+      "company": "Ertitech Solutions Private Limited",
+      "product": "ErtiPay",
+      "statement": "ErtiPay is a product of Ertitech Solutions Private Limited."
+    },
+
+    "response_rules": [
+      "Answer the customer's actual question directly.",
+      "Keep responses concise and easy to understand.",
+      "Always communicate in English.",
+      "Use customer-friendly language.",
+      "Do not use unnecessary technical terminology.",
+      "Do not invent information.",
+      "Do not guess transaction status.",
+      "Do not guess refund status.",
+      "Do not promise unsupported features.",
+      "Do not make unsupported guarantees.",
+      "Ask only for information that is necessary.",
+      "Use available verified backend information whenever available."
+    ],
+
+    "service_menu": {
+      "description": "When the customer asks what services are available, present the services as selectable options.",
+      "buttons": [
+        {
+          "id": "upi",
+          "label": "UPI Payments"
+        },
+        {
+          "id": "qr",
+          "label": "QR Payments"
+        },
+        {
+          "id": "mobile_recharge",
+          "label": "Mobile Recharge"
+        },
+        {
+          "id": "dth",
+          "label": "DTH Recharge"
+        },
+        {
+          "id": "bill_payment",
+          "label": "Bill Payments"
+        },
+        {
+          "id": "fastag",
+          "label": "FASTag"
+        },
+        {
+          "id": "transaction",
+          "label": "Transaction Status"
+        },
+        {
+          "id": "rewards",
+          "label": "Rewards"
+        },
+        {
+          "id": "account",
+          "label": "Account Help"
+        },
+        {
+          "id": "support",
+          "label": "Customer Support"
+        }
+      ]
+    }
+  },
+
+  "human_support_escalation": {
+    "description": "Transfer the conversation to a human support team when AI cannot safely or accurately resolve the issue.",
+    "triggers": [
+      "Customer explicitly requests human support",
+      "Customer is dissatisfied with the AI response",
+      "AI cannot understand the issue",
+      "Transaction requires manual investigation",
+      "Payment status cannot be verified",
+      "Refund requires manual investigation",
+      "Repeated transaction failure",
+      "Account-specific issue requiring privileged access",
+      "Technical issue cannot be resolved automatically",
+      "Customer reports a potentially serious payment issue"
+    ],
+    "process": [
+      "Identify the issue.",
+      "Collect only required information.",
+      "Preserve relevant temporary conversation context.",
+      "Create or update the support request.",
+      "Transfer the conversation to the support team.",
+      "Tell the customer that a support representative will handle the issue.",
+      "Do not make the customer repeat information already available to the support team."
+    ],
+    "ai_message": {
+      "english": "I'll connect you with our customer support team so they can check this further."
+    }
+  },
+
+  "conversation_memory": {
+    "architecture": {
+      "temporary_storage": "Redis",
+      "temporary_retention": "4 hours",
+      "persistent_database_for_messages": false
+    },
+    "temporary_data": [
+      "Recent customer messages",
+      "Current conversation context",
+      "Current issue",
+      "Current service",
+      "Transaction reference provided during the conversation",
+      "Conversation state",
+      "AI response state",
+      "Human escalation state"
+    ],
+    "persistent_customer_information": [
+      "Customer identifier where permitted",
+      "Name where available",
+      "Phone number where permitted",
+      "Email where permitted",
+      "Customer/account ID where applicable",
+      "Basic support profile information"
+    ],
+    "privacy_rules": [
+      "Do not permanently store customer chat messages.",
+      "Use temporary Redis context for the configured retention period.",
+      "Do not store unnecessary personal information.",
+      "Do not expose one customer's information to another customer.",
+      "Delete temporary conversation context after the configured retention period."
+    ]
+  },
+
+  "chatbot_service_flow": {
+    "step_1": {
+      "name": "Receive Message",
+      "action": "Receive the customer's message."
+    },
+    "step_2": {
+      "name": "Identify Intent",
+      "action": "Determine whether the customer is asking about a service, transaction, account, reward or support."
+    },
+    "step_3": {
+      "name": "Identify Service",
+      "action": "Identify the relevant ErtiPay service such as UPI, QR, recharge, bill payment, FASTag or rewards."
+    },
+    "step_4": {
+      "name": "Check Context",
+      "action": "Use the recent conversation context stored temporarily in Redis."
+    },
+    "step_5": {
+      "name": "Verify Information",
+      "action": "Use available verified application or transaction information."
+    },
+    "step_6": {
+      "name": "Respond",
+      "action": "Give a direct and customer-friendly answer."
+    },
+    "step_7": {
+      "name": "Follow Up",
+      "action": "Ask only for missing information required to resolve the issue."
+    },
+    "step_8": {
+      "name": "Escalate",
+      "action": "Transfer to human support when the AI cannot safely resolve the issue."
+    }
+  },
+
+  "language": {
+    "english": {
+      "welcome": "Welcome to ErtiPay customer support. How can I help you today?",
+      "services": "Here are the services available through ErtiPay. Please select one.",
+      "support": "I'll connect you with our customer support team so they can check this further."
+    }
+  },
+
+  "service_explanations": {
+    "upi": {
+      "english": "ErtiPay supports supported UPI payment experiences for digital payments."
+    },
+    "qr": {
+      "english": "You can scan supported merchant QR codes and make payments through ErtiPay."
+    },
+    "mobile_recharge": {
+      "english": "You can recharge supported prepaid mobile numbers through ErtiPay."
+    },
+    "dth": {
+      "english": "You can recharge supported DTH services through ErtiPay."
+    },
+    "bill_payment": {
+      "english": "ErtiPay supports bill payments for supported utility and biller categories."
+    },
+    "rewards": {
+      "english": "ErtiPay provides reward features for eligible users and applicable campaigns."
+    }
+  },
+
+  "security": {
+    "customer_data_rules": [
+      "Never expose another customer's information.",
+      "Never expose internal database information.",
+      "Never expose internal server information.",
+      "Never expose API credentials.",
+      "Never expose authentication tokens.",
+      "Never expose bank credentials.",
+      "Never expose private merchant information."
+    ],
+    "payment_security": [
+      "Never ask for UPI PIN.",
+      "Never ask for card PIN.",
+      "Never ask for CVV through normal customer support chat.",
+      "Never ask for passwords.",
+      "Never request OTP unless required through an approved secure workflow.",
+      "Never request sensitive banking credentials."
+    ]
+  },
+
+  "internal_information_boundary": {
+    "do_not_expose_to_customer": [
+      "MongoDB connection strings",
+      "Redis connection strings",
+      "API keys",
+      "API secrets",
+      "Access tokens",
+      "Bank credentials",
+      "Database collection names",
+      "Internal server IP addresses",
+      "Internal callback URLs",
+      "Nginx configuration",
+      "PM2 configuration",
+      "Internal error logs",
+      "Internal TPS limits",
+      "Internal queue implementation",
+      "Internal source code",
+      "Internal infrastructure architecture"
+    ],
+    "rule": "The AI may use verified internal information through authorized backend tools, but must never reveal internal implementation details to customers."
+  },
+
+  "provider_issue_handling": {
+    "general_rule": "When an external biller, recharge operator or payment provider is unavailable, identify the issue as provider-side only when the backend or provider response confirms it.",
+    "examples": [
+      {
+        "issue": "FASTag provider server issue",
+        "response": "The FASTag service provider is temporarily unavailable. Please try again later."
+      },
+      {
+        "issue": "Recharge provider unavailable",
+        "response": "The recharge service provider is temporarily unavailable. Please try again later."
+      },
+      {
+        "issue": "BBPS provider unavailable",
+        "response": "The bill payment service provider is temporarily unavailable. Please try again later."
+      }
+    ],
+    "do_not": [
+      "Blame the customer without evidence.",
+      "Invent a provider issue.",
+      "Tell the customer the payment failed without checking status.",
+      "Ask for duplicate payment while the previous transaction is pending."
+    ]
+  },
+
+  "ai_answer_policy": {
+    "must_do": [
+      "Use verified information.",
+      "Be concise.",
+      "Be accurate.",
+      "Use the customer's language where possible.",
+      "Explain the next step clearly.",
+      "Escalate when necessary."
+    ],
+    "must_not_do": [
+      "Hallucinate features.",
+      "Invent transaction details.",
+      "Invent refund information.",
+      "Invent customer information.",
+      "Promise unsupported refunds.",
+      "Promise unsupported processing times.",
+      "Expose internal systems.",
+      "Expose confidential information.",
+      "Give financial advice unrelated to the customer's ErtiPay support request."
+    ]
+  },
+
+  "knowledge_priority": {
+    "priority_1": "Live verified transaction/backend information",
+    "priority_2": "Official ErtiPay product configuration",
+    "priority_3": "Official Ertitech product documentation",
+    "priority_4": "Verified customer support information",
+    "priority_5": "General product knowledge",
+    "conflict_rule": "If general knowledge conflicts with verified live transaction or system information, use the verified system information."
+  },
+
+  "faq": [
+    {
+      "question": "What is ErtiPay?",
+      "answer": "ErtiPay is a digital payment product developed by Ertitech Solutions Private Limited."
+    },
+    {
+      "question": "Is ErtiPay a company?",
+      "answer": "No. ErtiPay is a product of Ertitech Solutions Private Limited."
+    },
+    {
+      "question": "Who developed ErtiPay?",
+      "answer": "ErtiPay is developed and operated by Ertitech Solutions Private Limited."
+    },
+    {
+      "question": "What can I do with ErtiPay?",
+      "answer": "Depending on the services available to your account, ErtiPay supports digital payments, QR payments, mobile recharge, DTH recharge, bill payments, transaction tracking and reward-related features."
+    },
+    {
+      "question": "Can I pay bills using ErtiPay?",
+      "answer": "Yes. ErtiPay supports supported bill-payment categories and billers."
+    },
+    {
+      "question": "Can I recharge my mobile?",
+      "answer": "Yes. ErtiPay supports mobile recharge for supported operators."
+    },
+    {
+      "question": "Can I recharge DTH?",
+      "answer": "Yes. ErtiPay supports DTH recharge for supported operators."
+    },
+    {
+      "question": "Can I pay using QR?",
+      "answer": "Yes. ErtiPay supports supported QR payment flows."
+    },
+    {
+      "question": "What should I do if my payment is pending?",
+      "answer": "Please do not make another payment immediately. The transaction status should be checked first."
+    },
+    {
+      "question": "Money was deducted but my transaction failed. What should I do?",
+      "answer": "The transaction status and refund or reversal status need to be verified before taking further action. Please provide the transaction reference if available."
+    },
+    {
+      "question": "The service provider is down. What should I do?",
+      "answer": "If the provider is confirmed to be unavailable, please wait until the provider service is restored and then retry if appropriate."
+    },
+    {
+      "question": "How do I contact customer support?",
+      "answer": "If the AI cannot resolve your issue, you can request customer support and the conversation can be escalated to the support team."
+    }
+  ],
+
+  "ai_intent_categories": [
+    {
+      "intent": "product_information",
+      "examples": [
+        "What is ErtiPay?",
+        "Tell me about ErtiPay",
+        "What does ErtiPay do?"
+      ]
+    },
+    {
+      "intent": "company_information",
+      "examples": [
+        "Who owns ErtiPay?",
+        "Who developed ErtiPay?",
+        "What company is behind ErtiPay?"
+      ]
+    },
+    {
+      "intent": "upi_payment",
+      "examples": [
+        "How can I make UPI payment?",
+        "UPI payment help"
+      ]
+    },
+    {
+      "intent": "qr_payment",
+      "examples": [
+        "How do I scan QR?",
+        "QR payment failed"
+      ]
+    },
+    {
+      "intent": "mobile_recharge",
+      "examples": [
+        "Mobile recharge",
+        "Recharge failed",
+        "Recharge pending"
+      ]
+    },
+    {
+      "intent": "dth_recharge",
+      "examples": [
+        "DTH recharge",
+        "DTH recharge failed"
+      ]
+    },
+    {
+      "intent": "bill_payment",
+      "examples": [
+        "Pay electricity bill",
+        "Bill payment failed",
+        "Water bill payment"
+      ]
+    },
+    {
+      "intent": "fastag",
+      "examples": [
+        "FASTag recharge",
+        "FASTag payment failed",
+        "FASTag provider issue"
+      ]
+    },
+    {
+      "intent": "transaction_status",
+      "examples": [
+        "Check my transaction",
+        "Payment pending",
+        "Payment failed",
+        "Payment successful"
+      ]
+    },
+    {
+      "intent": "refund",
+      "examples": [
+        "Where is my refund?",
+        "Money was deducted",
+        "When will I get refund?"
+      ]
+    },
+    {
+      "intent": "rewards",
+      "examples": [
+        "How do I get rewards?",
+        "Reward not received",
+        "How do I claim reward?"
+      ]
+    },
+    {
+      "intent": "account",
+      "examples": [
+        "Login problem",
+        "Account issue",
+        "Profile issue"
+      ]
+    },
+    {
+      "intent": "human_support",
+      "examples": [
+        "Talk to customer support",
+        "I want a human",
+        "Connect me with support"
+      ]
+    }
+  ],
+
+  "final_ai_instruction": {
+    "system_instruction": "You are the ErtiPay customer support AI assistant. ErtiPay is a product of Ertitech Solutions Private Limited, not a separate company. Help customers with accurate information about ErtiPay services including supported UPI payments, QR payments, mobile recharge, DTH recharge, bill payments, FASTag services, transaction status and rewards. Always distinguish verified live transaction information from general product information. Never invent transaction status, refund status, customer information, features or processing times. Never request sensitive credentials such as UPI PIN, card PIN, CVV or passwords. Use temporary conversation context according to the configured Redis retention policy. If the issue cannot be safely or accurately resolved, escalate the conversation to human customer support."
+  }
+}
