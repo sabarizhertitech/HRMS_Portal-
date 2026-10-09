@@ -417,7 +417,7 @@ async function createSalarySlip({
   const workingDays =
     Math.floor((actualEnd - actualStart) / (1000 * 60 * 60 * 24)) + 1;
 
-  // 🔒 Prevent duplicate generation for the same month/year
+  //  Prevent duplicate generation for the same month/year
   if (existing && !regenerate) {
     const monthName = monthNames[m - 1] || month;
     throw new Error(`Salary slip for ${monthName} ${y} has already been generated for this employee.`);
@@ -660,7 +660,7 @@ async function createSalarySlip({
     try {
       slip = await SalarySlip.create(payload);
     } catch (err) {
-      // 🔒 Catch race-condition duplicate from unique index
+      //  Catch race-condition duplicate from unique index
       if (err.code === 11000) {
         throw new Error("Salary slip already exists (duplicate prevented)");
       }

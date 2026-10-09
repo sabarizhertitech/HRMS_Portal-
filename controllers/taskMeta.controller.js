@@ -32,9 +32,17 @@ exports.getTaskMeta = async (req, res) => {
       }))
     );
 
+    const projectPages = mappings.flatMap(m =>
+      (m.projectPages || []).map(pp => ({
+        category: m.category,
+        project: pp.project,
+        pages: pp.pages || []
+      }))
+    );
+
     res.json({
       success: true,
-      data: { categories, projects, fullCategories, fullProjects },
+      data: { categories, projects, fullCategories, fullProjects, projectPages },
     });
   } catch (err) {
     console.error("[GET_TASK_META] Error:", err.message);
@@ -233,5 +241,83 @@ exports.updateProject = async (req, res) => {
     res.json({ success: true, message: "Project renamed successfully", data: mapping });
   } catch (err) {
     res.status(500).json({ message: "Update failed", error: err.message });
+  }
+};
+
+/* ── POST /task-meta/page ────────────────────────────────── */
+exports.addPage = async (req, res) => {
+  try {
+    const { category, project, name } = req.body;
+    if (!name?.trim()) return res.status(400).json({ success: false, message: "Page name is required" });
+    if (!project?.trim()) return res.status(400).json({ success: false, message: "Project is required" });
+    if (!category?.trim()) return res.status(400).json({ success: false, message: "Category is required" });
+
+    const trimmedPage = name.trim();
+    const trimmedCat = category.trim();
+    const trimmedProj = project.trim();
+
+    const mapping = await TaskMeta.findOne({ category: { $regex: new RegExp(`^${trimmedCat}$`, "i") } });
+    if (!mapping) return res.status(404).json({ success: false, message: "Category not found" });
+
+    if (!mapping.projectPages) mapping.projectPages = [];
+    let projPageEntry = mapping.projectPages.find(pp => pp.project && pp.project.toLowerCase() === trimmedProj.toLowerCase());
+    if (!projPageEntry) {
+      projPageEntry = { project: trimmedProj, pages: [] };
+      mapping.projectPages.push(projPageEntry);
+    }
+
+    const alreadyExists = (projPageEntry.pages || []).some(p => p && p.toLowerCase() === trimmedPage.toLowerCase());
+    if (alreadyExists) {
+      return res.status(409).json({ success: false, message: "Page already exists for this project" });
+    }
+
+    projPageEntry.pages.push(trimmedPage);
+    mapping.markModified("projectPages");
+    await mapping.save();
+
+    res.status(201).json({
+      success: true,
+      message: `Page "${trimmedPage}" added to "${trimmedProj}"`,
+      data: {
+        category: mapping.category,
+        project: trimmedProj,
+        page: trimmedPage,
+        pages: projPageEntry.pages
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/* ── DELETE /task-meta/page ──────────────────────────────── */
+exports.deletePage = async (req, res) => {
+  try {
+    const { category, project, page } = req.body;
+    if (!page?.trim() || !project?.trim() || !category?.trim()) {
+      return res.status(400).json({ success: false, message: "Category, project, and page are required" });
+    }
+
+    const mapping = await TaskMeta.findOne({ category: { $regex: new RegExp(`^${category.trim()}$`, "i") } });
+    if (!mapping || !mapping.projectPages) {
+      return res.status(404).json({ success: false, message: "Category or pages not found" });
+    }
+
+    const projPageEntry = mapping.projectPages.find(pp => pp.project && pp.project.toLowerCase() === project.trim().toLowerCase());
+    if (!projPageEntry) {
+      return res.status(404).json({ success: false, message: "Project not found in pages" });
+    }
+
+    projPageEntry.pages = (projPageEntry.pages || []).filter(p => p && p.toLowerCase() !== page.trim().toLowerCase());
+    mapping.markModified("projectPages");
+    await mapping.save();
+
+    res.json({
+      success: true,
+      message: `Page "${page}" removed from "${project}"`,
+      data: { pages: projPageEntry.pages }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };

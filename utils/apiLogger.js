@@ -51,7 +51,7 @@ const apiLogger = (controller, fileName) => {
     if (typeof handler === 'function') {
       wrappedController[functionName] = async (req, res, next) => {
         const timestamp = new Date().toISOString();
-        const route = req ? (req.originalUrl || req.url) : 'Internal/Cron';
+        const route = (req && (req.originalUrl || req.url)) ? (req.originalUrl || req.url) : 'Internal/Cron';
         
         const wrappedNext = (err) => {
           if (err) {
@@ -63,7 +63,7 @@ const apiLogger = (controller, fileName) => {
 
         const method = req ? (req.method || 'GET') : 'INTERNAL';
         const isBackgroundRoute = 
-          (method === 'GET' && (
+          (method === 'GET' && typeof route === 'string' && (
             route.startsWith('/api/leaves') ||
             route.startsWith('/api/notifications') ||
             route.startsWith('/security/pending-for-me') ||

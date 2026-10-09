@@ -10,6 +10,9 @@ const notificationSchema = new mongoose.Schema(
         "EDIT_REJECTED",
 
         "PROFILE_UPDATED",
+        "PROFILE_COMPLETION_REQUEST",
+        "PROFILE_APPROVED",
+        "PROFILE_REJECTED",
 
         "SECURITY_REQUEST",
         "SECURITY_APPROVED",
@@ -70,6 +73,8 @@ const notificationSchema = new mongoose.Schema(
       approvedBy: String,
       rejectedBy: String,
       reason: String,
+      rejectionRemark: String,
+      rejectedFields: [String],
       approvedUntil: Date,
       ticketId: String,
       requestType: String,

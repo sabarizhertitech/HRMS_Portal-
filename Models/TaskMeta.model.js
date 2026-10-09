@@ -19,6 +19,12 @@ const taskMetaSchema = new mongoose.Schema(
       index: true,
     },
     projects: [{ type: String }],
+    projectPages: [
+      {
+        project: { type: String, required: true },
+        pages: [{ type: String }],
+      },
+    ],
   }
 );
 

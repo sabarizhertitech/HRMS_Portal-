@@ -32,6 +32,8 @@ const {
   addProject,
   deleteProject,
   updateProject,
+  addPage,
+  deletePage,
 } = require("../controllers/taskMeta.controller");
 
 const {
@@ -45,7 +47,6 @@ const {
   updateDailyUpdate,
   getEmployeeDailyWorkUpdates,
   deleteWorkUpdate,
-  getPendingReminders,
 } = require("../controllers/Dailyworkupdate.controller");
 
 const {
@@ -105,6 +106,8 @@ router.delete("/task-meta/category/:id", authMiddleware, deleteCategory);
 router.post("/task-meta/project", authMiddleware, addProject);
 router.put("/task-meta/project", authMiddleware, updateProject);
 router.delete("/task-meta/project", authMiddleware, deleteProject);
+router.post("/task-meta/page", authMiddleware, addPage);
+router.delete("/task-meta/page", authMiddleware, deletePage);
 
 router.post("/daily-update", authMiddleware, createDailyUpdate);
 router.put("/daily-update/:id", authMiddleware, updateDailyUpdate);
@@ -113,7 +116,6 @@ router.get("/daily-update/today/:taskId", authMiddleware, getTodayUpdates);
 router.get("/daily-update/employee/history", authMiddleware, getEmployeeDailyWorkUpdates);
 router.get("/daily-update/all", authMiddleware, getAllDailyWorkUpdates);
 router.get("/daily-update/meta", authMiddleware, getWorkUpdateMeta);
-router.get("/daily-update/pending-reminders", authMiddleware, getPendingReminders);
 router.get("/daily-update/standalone-updates", authMiddleware, getStandaloneWorkUpdates);
 router.get("/daily-update/report-by-meta", authMiddleware, getWorkByMetadata);
 router.get("/daily-update/:taskId", authMiddleware, getDailyUpdates);

@@ -146,6 +146,12 @@ const EmployeeSchema = new mongoose.Schema(
       default: false,
     },
 
+    profileApprovalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected", null],
+      default: null,
+    },
+
     profileCompletedAt: {
       type: Date,
       default: null,

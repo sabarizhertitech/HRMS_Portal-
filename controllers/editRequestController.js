@@ -161,7 +161,7 @@ exports.updateRequestStatus = async (req, res) => {
         });
       }
 
-      // 🔒 Only allow fields that were actually requested
+      //  Only allow fields that were actually requested
       const safeApprovedFields = approvedFields.filter(f =>
         request.requestedFields.includes(f)
       );
@@ -186,15 +186,15 @@ exports.updateRequestStatus = async (req, res) => {
         { status: "used" }
       );
 
-     
+
     } else {
       // 🔥 REJECT → DIRECTLY CLOSE
       request.status = "used";
-    
+
     }
 
     await request.save();
-    
+
 
     return res.json({
       success: true,
@@ -250,6 +250,30 @@ exports.canEditProfile = async (req, res) => {
         canEdit: true,
         allowedFields: approvedRequest.approvedFields || [],
         message: "Edit request approved",
+      });
+    }
+
+    const details = await EmployeeDetails.findOne({ empId: employeeId });
+    if (details && details.profileApprovalStatus === "rejected") {
+      return res.json({
+        success: true,
+        canEdit: true,
+        isRejected: true,
+        profileApprovalStatus: "rejected",
+        rejectionRemark: details.rejectionRemark || "",
+        rejectedFields: details.rejectedFields || [],
+        allowedFields: details.rejectedFields && details.rejectedFields.length > 0 ? details.rejectedFields : [],
+        message: details.rejectionRemark || "Profile rejected by admin",
+      });
+    }
+
+    if (details && details.profileApprovalStatus === "pending") {
+      return res.json({
+        success: true,
+        canEdit: false,
+        isPendingApproval: true,
+        profileApprovalStatus: "pending",
+        message: "Profile is pending Admin review and approval",
       });
     }
 

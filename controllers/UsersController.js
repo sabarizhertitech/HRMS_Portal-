@@ -16,6 +16,7 @@ const mongoose = require("mongoose");
 const MenuPermission = require("../Models/MenuPermission");
 const { decrypt, encrypt, maskAccountNumber: maskAccNo } = require("../utilities/secureEncryption");
 const { createLog } = require("../utilities/logService");
+const { checkProfileRestriction, calculateProfileCompletion } = require("../utils/profileRestriction");
 
 const computeFinancialYear = (dateInput) => {
   const d = dateInput ? new Date(dateInput) : new Date();
@@ -199,10 +200,37 @@ const UsersController = {
       const permDoc = await MenuPermission.findOne({ employeeId: user._id });
       const permissions = permDoc ? permDoc.menus : [];
 
+      let profileCompletion = 0;
+      let isProfileRestricted = false;
+      let daysRemainingForProfile = 7;
+      let isNewEmployee = false;
+      let profileDeadline = null;
+
+      if (user.role === "employee") {
+        const details = await EmployeeDetails.findOne({ empId: user._id });
+        if (details) {
+          profileCompletion = calculateProfileCompletion(details.toObject(), user);
+        }
+        const restriction = checkProfileRestriction({
+          role: "employee",
+          profileCompletion,
+          isProfileCompleted: user.isProfileCompleted,
+          dateJoined: user.dateJoined,
+          createdAt: user.createdAt,
+          empId: user.empId,
+        });
+        isProfileRestricted = restriction.isRestricted;
+        daysRemainingForProfile = restriction.daysRemaining;
+        isNewEmployee = restriction.isNewEmployee;
+        profileDeadline = restriction.deadline;
+      }
+
       if (user.isFirstLogin) {
         return res.status(200).json({
           message: "Login success",
           _id: user._id,
+          empId: user.empId,
+          username: user.username,
           name: user.name,
           role: user.role,
           isHr: !!user.isHr,
@@ -211,13 +239,22 @@ const UsersController = {
           forceChangePassword: true,
           passwordExpiringSoon: false,
           passwordExpiresAt: user.passwordExpiresAt,
-          daysRemaining
+          daysRemaining,
+          profileCompletion,
+          dateJoined: user.dateJoined,
+          isProfileCompleted: user.isProfileCompleted || profileCompletion >= 100,
+          isProfileRestricted,
+          daysRemainingForProfile,
+          isNewEmployee,
+          profileDeadline,
         });
       }
 
       return res.status(200).json({
         message: "Login success",
         _id: user._id,
+        empId: user.empId,
+        username: user.username,
         name: user.name,
         role: user.role,
         isHr: !!user.isHr,
@@ -226,7 +263,14 @@ const UsersController = {
         forceChangePassword,
         passwordExpiringSoon,
         passwordExpiresAt: user.passwordExpiresAt,
-        daysRemaining
+        daysRemaining,
+        profileCompletion,
+        dateJoined: user.dateJoined,
+        isProfileCompleted: user.isProfileCompleted || profileCompletion >= 100,
+        isProfileRestricted,
+        daysRemainingForProfile,
+        isNewEmployee,
+        profileDeadline,
       });
 
 

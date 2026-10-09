@@ -17,6 +17,7 @@ const {
   replyBirthdayWish,
   getUserSentWishes,
   getDocumentViewUrl,
+  adminReviewProfile,
 } = require("../controllers/employee.controller");
 
 const attendanceController = require("../controllers/attendance.controller");
@@ -118,6 +119,13 @@ Users.put(
   portalAuth.adminMiddleware,
   upload.any(),
   adminUpdateEmployee
+);
+
+// ✅ Admin review & approve/reject employee profile
+Users.put(
+  "/admin/review-profile/:empId",
+  portalAuth.adminMiddleware,
+  adminReviewProfile
 );
 
 Users.get(

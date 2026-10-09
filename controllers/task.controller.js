@@ -1705,12 +1705,16 @@ exports.getProjectPhases = async (req, res) => {
       );
 
       return {
+        _id: u._id,
+        referenceId: u.referenceId || null,
         task_id: parentTask?._id || "standalone",
         taskTitle: parentTask?.taskTitle || u.title || "Standalone Work Update",
         name: u.title || "N/A",
         status: u.status || "In Process",
         note: u.description || "",
+        description: u.description || "",
         date: u.updateDate || u.createdAt,
+        pages: u.pages || [],
         source: parentTask ? "Task" : "Standalone"
       };
     });

@@ -8,6 +8,7 @@ const dailyWorkUpdateSchema = new mongoose.Schema(
     project: {
       type: String,
     },
+    pages: [{ type: String }],
     workType: {
       type: String,
       trim: true,

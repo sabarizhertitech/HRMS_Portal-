@@ -21,6 +21,7 @@ exports.createDailyUpdate = async (req, res) => {
       taskTitle, // legacy
       category,
       project,
+      pages,
       workType,
       employeeId,
       taskPhaseId
@@ -121,6 +122,7 @@ exports.createDailyUpdate = async (req, res) => {
       userId: userId,
       category: (category || "").trim(),
       project: (project || "").trim(),
+      pages: Array.isArray(pages) ? pages.map(p => String(p).trim()).filter(Boolean) : (typeof pages === "string" && pages.trim() ? [pages.trim()] : []),
       workType: (workType || "").trim(),
       title: finalTitle,
       description: (description || "").trim(),
@@ -138,7 +140,32 @@ exports.createDailyUpdate = async (req, res) => {
       finalPhaseId = targetPhase._id;
     }
 
-    if (finalPhaseId) {
+    // 🌟 Task Connectivity: If not already linked to a task phase, link to existing update of the same task
+    if (!finalPhaseId && finalTitle && category && project) {
+      const existingSameTask = await DailyWorkUpdate.findOne({
+        userId: userId,
+        category: category.trim(),
+        project: project.trim(),
+        title: { $regex: new RegExp(`^${finalTitle.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, "i") }
+      }).sort({ updateDate: -1 });
+
+      if (existingSameTask) {
+        if (existingSameTask.referenceId) {
+          finalPhaseId = existingSameTask.referenceId;
+          entryData.referenceId = finalPhaseId;
+        } else {
+          const sharedRefId = new mongoose.Types.ObjectId();
+          existingSameTask.referenceId = sharedRefId;
+          await existingSameTask.save().catch(() => { });
+          finalPhaseId = sharedRefId;
+          entryData.referenceId = sharedRefId;
+        }
+      } else {
+        const newRefId = new mongoose.Types.ObjectId();
+        finalPhaseId = newRefId;
+        entryData.referenceId = newRefId;
+      }
+    } else if (finalPhaseId) {
       entryData.referenceId = finalPhaseId;
     }
 
@@ -157,6 +184,12 @@ exports.createDailyUpdate = async (req, res) => {
       });
     }
 
+    //  RESTRICTION: If existing entry on same date is already Completed, it is permanently locked and read-only.
+    // Do NOT overwrite it; create a new record instead so completed history is preserved permanently.
+    if (entry && (entry.status || "").toLowerCase() === "completed") {
+      entry = null;
+    }
+
     if (entry) {
       console.log(`[CreateDailyUpdate] Updating existing DailyWorkUpdate entry for referenceId: ${finalPhaseId} on same date`);
       entry.description = (description || "").trim();
@@ -165,6 +198,9 @@ exports.createDailyUpdate = async (req, res) => {
       entry.title = finalTitle;
       if (category) entry.category = category.trim();
       if (project) entry.project = project.trim();
+      if (pages !== undefined) {
+        entry.pages = Array.isArray(pages) ? pages.map(p => String(p).trim()).filter(Boolean) : (typeof pages === "string" && pages.trim() ? [pages.trim()] : []);
+      }
       if (workType !== undefined) entry.workType = (workType || "").trim();
       await entry.save();
     } else {
@@ -242,7 +278,7 @@ exports.createDailyUpdate = async (req, res) => {
 exports.updateDailyUpdate = async (req, res) => {
   try {
     const { id } = req.params;
-    const { description, phase, status, phaseStatus, title, category, project, workType } = req.body;
+    const { description, phase, status, phaseStatus, title, category, project, pages, workType } = req.body;
 
     const entry = await DailyWorkUpdate.findById(id);
     if (!entry) {
@@ -257,12 +293,23 @@ exports.updateDailyUpdate = async (req, res) => {
       return res.status(403).json({ success: false, message: "Unauthorized to modify this work update" });
     }
 
+    //  RESTRICTION: Once a work update is marked as Completed, it becomes final and read-only.
+    if ((entry.status || "").toLowerCase() === "completed" && !isAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: "Completed work updates are permanently locked and cannot be edited. Please create a new work update."
+      });
+    }
+
     entry.description = (description || entry.description || "").trim();
     entry.title = (phase || title || entry.title || "").trim();
     entry.status = status || phaseStatus || entry.status;
 
     if (category && category.trim() !== "") entry.category = category.trim();
     if (project && project.trim() !== "") entry.project = project.trim();
+    if (pages !== undefined) {
+      entry.pages = Array.isArray(pages) ? pages.map(p => String(p).trim()).filter(Boolean) : (typeof pages === "string" && pages.trim() ? [pages.trim()] : []);
+    }
     if (workType !== undefined) entry.workType = (workType || "").trim();
 
     // Check condition for referenceId:
@@ -309,7 +356,7 @@ exports.updateDailyUpdate = async (req, res) => {
         { category: catTrim },
         updateOp,
         { upsert: true, new: true }
-      ).catch(() => {});
+      ).catch(() => { });
     }
 
     res.json({ success: true, message: "Update modified successfully", data: entry });
@@ -560,7 +607,9 @@ exports.getAllDailyWorkUpdates = async (req, res) => {
 
     dailyPipeline.push({
       $project: {
-        _id: 1, description: 1, title: 1, status: 1, updateDate: 1, createdAt: 1, category: 1, project: 1, workType: 1, referenceId: { $ifNull: ["$referenceId", null] }, taskPhaseId: { $ifNull: ["$referenceId", null] },
+        _id: 1, description: 1, title: 1, status: 1, updateDate: 1, createdAt: 1, category: 1, project: 1, workType: 1,
+        pages: { $ifNull: ["$pages", []] },
+        referenceId: { $ifNull: ["$referenceId", null] }, taskPhaseId: { $ifNull: ["$referenceId", null] },
         userId: { _id: "$userInfo._id", name: "$userInfo.name", employeeId: "$userInfo.empId", photo: "$userInfo.photo" },
         updatedBy: { _id: "$userInfo._id", name: "$userInfo.name", employeeId: "$userInfo.empId", photo: "$userInfo.photo" },
         note: "$description",
@@ -740,19 +789,22 @@ exports.getStandaloneWorkUpdates = async (req, res) => {
     });
 
     // 3. Fetch All Updates from DailyWorkUpdate (Consolidated source)
-    const queryFilter = {
-      $or: [
-        { task: { $in: taskIds } },
-        { referenceId: { $in: phaseIds } },
-        {
-          $and: [
-            { $or: [{ task: null }, { task: { $exists: false } }] },
-            { $or: [{ referenceId: null }, { referenceId: { $exists: false } }] },
-            standaloneMatch
-          ]
-        }
-      ]
-    };
+    const hasCategoryOrProject = Boolean(category || project);
+    let queryFilter = {};
+
+    if (hasCategoryOrProject) {
+      const orConditions = [];
+      if (taskIds.length > 0) {
+        orConditions.push({ task: { $in: taskIds } });
+      }
+      if (phaseIds.length > 0) {
+        orConditions.push({ referenceId: { $in: phaseIds } });
+      }
+      if (Object.keys(standaloneMatch).length > 0) {
+        orConditions.push(standaloneMatch);
+      }
+      queryFilter = orConditions.length > 0 ? { $or: orConditions } : {};
+    }
 
     if (resolvedEmpId) {
       queryFilter.userId = resolvedEmpId;
@@ -778,11 +830,14 @@ exports.getStandaloneWorkUpdates = async (req, res) => {
         }
         return {
           _id: d._id,
+          task_id: d.task?._id || (d.task ? d.task : null),
+          referenceId: d.referenceId || null,
           type: (d.task || d.referenceId) ? "formal_task" : "standalone",
           displayTitle: d.task?.taskTitle || d.title || "Untitled Work",
           details: d.task?.taskDetails || d.description,
           category: d.task?.category || d.category || "",
           project: d.task?.project || d.project || "",
+          pages: d.pages || [],
           phase: d.title,
           phaseStatus: d.status,
           note: d.description || "",
@@ -924,6 +979,7 @@ exports.getEmployeeDailyWorkUpdates = async (req, res) => {
       date: u.updateDate || u.createdAt,
       category: u.category || "N/A",
       project: u.project || "N/A",
+      pages: u.pages || [],
       categoryProject: `${u.category || "N/A"} / ${u.project || "N/A"}`,
       taskTitle: u.title || "N/A",
       description: u.description || ""
@@ -954,6 +1010,14 @@ exports.deleteWorkUpdate = async (req, res) => {
 
     if (!entry) {
       return res.status(404).json({ success: false, message: "Work update not found or unauthorized" });
+    }
+
+    //  RESTRICTION: Completed work update is final and read-only
+    if ((entry.status || "").toLowerCase() === "completed" && !isAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: "Completed work updates are permanently locked and cannot be deleted."
+      });
     }
 
     await DailyWorkUpdate.findByIdAndDelete(id);

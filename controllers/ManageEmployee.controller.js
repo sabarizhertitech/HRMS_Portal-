@@ -63,6 +63,9 @@ exports.getAllEmployees = async (req, res) => {
           role: emp.role,
           isHr: !!emp.isHr,
           profileCompletion: details.profileCompletion || 0,
+          profileApprovalStatus: details.profileApprovalStatus || emp.profileApprovalStatus || ((details.profileCompletion >= 100 && !emp.isProfileCompleted) ? "pending" : (emp.isProfileCompleted ? "approved" : null)),
+          isProfileCompleted: !!emp.isProfileCompleted,
+          rejectionRemark: details.rejectionRemark || "",
           photo: photoUrl,
           hasBankDetails: !!((details.bankName && details.accountNumber) || (details.bankHistory && details.bankHistory.length > 0)),
         };

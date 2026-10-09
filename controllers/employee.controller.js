@@ -3,6 +3,8 @@ const Employee = require("../Models/Employee");
 const LeaveBalance = require("../Models/LeaveBalance");
 const EditRequest = require("../Models/EditRequest");
 const BirthdayWish = require("../Models/BirthdayWish");
+const Notification = require("../Models/Notification");
+const { notifyAdmins, sendPushNotification } = require("../utilities/notificationService");
 const mongoose = require("mongoose");
 const { uploadToS3 } = require("../utilities/s3Upload");
 const generateSignedUrl = require("../utilities/s3SignedUrl");
@@ -14,6 +16,7 @@ const {
   maskPAN,
   maskAccountNumber
 } = require("../utilities/secureEncryption");
+const { checkProfileRestriction } = require("../utils/profileRestriction");
 
 
 const uploadFileToS3 = async (file, empIdString) => {
@@ -712,17 +715,78 @@ const updateEmployeeDetails = async (req, res) => {
       empUpdate.designation = req.body.designation ?? employee.designation;
     }
 
-    if (isFirstTime && merged.profileCompletion >= 100) {
-      await Employee.findByIdAndUpdate(employeeId, {
-        $set: {
-          ...empUpdate,
-          profileCompletedAt: new Date(),
-          isProfileCompleted: true,
-        }
-      });
-    } else {
-      await Employee.findByIdAndUpdate(employeeId, { $set: empUpdate });
+    const wasRejected = details?.profileApprovalStatus === "rejected" || employee?.profileApprovalStatus === "rejected";
+    const reached100 = merged.profileCompletion >= 100;
+    const isApprovedAlready = details?.profileApprovalStatus === "approved" && employee?.isProfileCompleted === true;
+
+    let responseMessage = "Profile updated successfully";
+
+    // Filter out any updated fields from details.rejectedFields so they are not shown again
+    if (Array.isArray(details.rejectedFields) && details.rejectedFields.length > 0) {
+      const updatedKeys = new Set(Object.keys(input));
+      if (req.files && Array.isArray(req.files)) {
+        req.files.forEach((f) => {
+          updatedKeys.add(f.fieldname);
+          if (f.fieldname === "marksheet10") updatedKeys.add("certificate10");
+          if (f.fieldname === "marksheet12") updatedKeys.add("certificate12");
+          if (f.fieldname && f.fieldname.includes("course_")) {
+            updatedKeys.add("degreeCertificate");
+            updatedKeys.add("courses");
+          }
+        });
+      }
+      details.rejectedFields = details.rejectedFields.filter((rf) => !updatedKeys.has(rf));
     }
+
+    if (!isApprovedAlready && (reached100 || wasRejected)) {
+      details.profileApprovalStatus = "pending";
+      details.submittedForApprovalAt = new Date();
+      details.rejectionRemark = "";
+      details.rejectedFields = [];
+      await details.save();
+
+      empUpdate.profileApprovalStatus = "pending";
+      empUpdate.isProfileCompleted = false;
+
+      const notifTitle = wasRejected
+        ? "Profile Re-submitted for Review"
+        : "Profile Completion Review Required";
+      const notifMsg = wasRejected
+        ? `${employee.name} (${employee.empId || ""}) has updated their documents and re-submitted their profile for review.`
+        : `${employee.name} (${employee.empId || ""}) has completed their profile 100% and submitted it for review and approval.`;
+
+      responseMessage = wasRejected
+        ? "Profile re-submitted for Admin review and approval successfully!"
+        : "Profile completed 100% and submitted for Admin review and approval!";
+
+      try {
+        await Notification.create({
+          type: "PROFILE_COMPLETION_REQUEST",
+          toAdmin: true,
+          fromEmployee: employeeId,
+          title: notifTitle,
+          message: notifMsg,
+          metadata: {
+            empIdString: employee.empId,
+            empName: employee.name,
+            department: employee.department,
+            designation: employee.designation,
+            url: `/admin/employees/view/${employee.empId || employee._id}`,
+            requestType: "profile-completion-review",
+          },
+        });
+
+        await notifyAdmins(notifTitle, notifMsg, {
+          type: "PROFILE_COMPLETION_REQUEST",
+          url: `/admin/employees/view/${employee.empId || employee._id}`,
+          empIdString: employee.empId || "",
+        });
+      } catch (notifErr) {
+        console.error("Profile review notification error:", notifErr);
+      }
+    }
+
+    await Employee.findByIdAndUpdate(employeeId, { $set: empUpdate });
 
     /* ───────── CONSUME EDIT REQUEST ───────── */
     if (!isFirstTime && approvedRequest) {
@@ -735,8 +799,9 @@ const updateEmployeeDetails = async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Profile updated successfully",
+      message: responseMessage,
       profileCompletion: merged.profileCompletion,
+      profileApprovalStatus: details.profileApprovalStatus,
       data: details,
     });
   } catch (err) {
@@ -775,10 +840,26 @@ const getEmployeeDetails = async (req, res) => {
 
     const detailsObj = cleanDetails(details.toObject());
 
+    let approvalStatus = details.profileApprovalStatus;
+    if (!approvalStatus) {
+      if (employee.isProfileCompleted === true) {
+        approvalStatus = "approved";
+      } else if (calculatedCompletion >= 100) {
+        approvalStatus = "pending";
+      } else {
+        approvalStatus = null;
+      }
+    }
+
     let responseData = {
       ...detailsObj,
       // Employee is PRIMARY source — always wins over EmployeeDetails
       ...employee.toObject(),
+      profileApprovalStatus: approvalStatus,
+      rejectionRemark: details.rejectionRemark || "",
+      rejectedFields: details.rejectedFields || [],
+      submittedForApprovalAt: details.submittedForApprovalAt || null,
+      reviewedAt: details.reviewedAt || null,
       dob: details.dob ? new Date(details.dob) : null,
       isBirthdayToday,
       empId: employee.empId,
@@ -883,6 +964,17 @@ const getMyProfileWithSignedUrls = async (req, res) => {
       await details.save();
     }
 
+    let approvalStatus2 = details.profileApprovalStatus;
+    if (!approvalStatus2) {
+      if (employee.isProfileCompleted === true) {
+        approvalStatus2 = "approved";
+      } else if (calculatedCompletion >= 100) {
+        approvalStatus2 = "pending";
+      } else {
+        approvalStatus2 = null;
+      }
+    }
+
     const detailsObj2 = cleanDetails(details.toObject());
 
     let responseData = {
@@ -890,6 +982,11 @@ const getMyProfileWithSignedUrls = async (req, res) => {
       profileCompletion: calculatedCompletion,
       // Employee is PRIMARY source — always wins over EmployeeDetails
       ...employee.toObject(),
+      profileApprovalStatus: approvalStatus2,
+      rejectionRemark: details.rejectionRemark || "",
+      rejectedFields: details.rejectedFields || [],
+      submittedForApprovalAt: details.submittedForApprovalAt || null,
+      reviewedAt: details.reviewedAt || null,
       empId: employee.empId,
       empIdString: employee.empId,
       picture: details.picture || employee.photo,
@@ -1309,7 +1406,13 @@ const getEmployeeByEmpIdString = async (req, res) => {
     const { empIdString } = req.params;
 
     // ✅ STEP 1: Get Employee FIRST (source of truth)
-    const employee = await Employee.findOne({ empId: empIdString });
+    let employee = null;
+    if (mongoose.Types.ObjectId.isValid(empIdString)) {
+      employee = await Employee.findById(empIdString);
+    }
+    if (!employee) {
+      employee = await Employee.findOne({ empId: empIdString });
+    }
 
     if (!employee) {
       return res.status(404).json({
@@ -1339,11 +1442,27 @@ const getEmployeeByEmpIdString = async (req, res) => {
     // ✅ STEP 5: Build response (Employee is PRIMARY source of truth)
     const detailsObj3 = cleanDetails(details.toObject());
 
+    let approvalStatus3 = details.profileApprovalStatus;
+    if (!approvalStatus3) {
+      if (employee.isProfileCompleted === true) {
+        approvalStatus3 = "approved";
+      } else if (calculatedCompletion >= 100) {
+        approvalStatus3 = "pending";
+      } else {
+        approvalStatus3 = null;
+      }
+    }
+
     let responseData = {
       ...detailsObj3,
       profileCompletion: calculatedCompletion,
       // Employee wins on all core fields
       ...employee.toObject(),
+      profileApprovalStatus: approvalStatus3,
+      rejectionRemark: details.rejectionRemark || "",
+      rejectedFields: details.rejectedFields || [],
+      submittedForApprovalAt: details.submittedForApprovalAt || null,
+      reviewedAt: details.reviewedAt || null,
       empIdString: employee.empId,
       dateRelieved: employee.dateRelieved,
     };
@@ -1482,7 +1601,25 @@ const getProfileCompletion = async (req, res) => {
       await details.save();
     }
 
-    res.json({ success: true, profileCompletion: calculatedCompletion });
+    const restriction = checkProfileRestriction({
+      role: "employee",
+      profileCompletion: calculatedCompletion,
+      isProfileCompleted: employee?.isProfileCompleted,
+      dateJoined: employee?.dateJoined,
+      createdAt: employee?.createdAt,
+      empId: employee?.empId || req.user?.empId,
+    });
+
+    res.json({
+      success: true,
+      profileCompletion: calculatedCompletion,
+      isProfileRestricted: restriction.isRestricted,
+      daysRemaining: restriction.daysRemaining,
+      isNewEmployee: restriction.isNewEmployee,
+      dateJoined: employee?.dateJoined,
+      isProfileCompleted: employee?.isProfileCompleted || calculatedCompletion >= 100,
+      deadline: restriction.deadline,
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: "Server error" });
   }
@@ -1772,6 +1909,166 @@ const getDocumentViewUrl = async (req, res) => {
   }
 };
 
+/* =====================================================
+   ADMIN REVIEW & APPROVE / REJECT PROFILE
+===================================================== */
+const adminReviewProfile = async (req, res) => {
+  try {
+    const { empId } = req.params;
+    const { action, remark, rejectedFields } = req.body;
+
+    if (!["approve", "reject"].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: "Action must be either 'approve' or 'reject'",
+      });
+    }
+
+    let employee = null;
+    if (mongoose.Types.ObjectId.isValid(empId)) {
+      employee = await Employee.findById(empId);
+    }
+    if (!employee) {
+      employee = await Employee.findOne({ empId });
+    }
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found",
+      });
+    }
+
+    let details = await EmployeeDetails.findOne({ empId: employee._id });
+    if (!details) {
+      details = await EmployeeDetails.create({
+        empId: employee._id,
+        empIdString: employee.empId,
+      });
+    }
+
+    const adminUser = req.user;
+
+    if (action === "approve") {
+      details.profileApprovalStatus = "approved";
+      details.rejectionRemark = "";
+      details.rejectedFields = [];
+      details.reviewedAt = new Date();
+      details.reviewedBy = adminUser._id;
+      await details.save();
+
+      await Employee.findByIdAndUpdate(employee._id, {
+        $set: {
+          isProfileCompleted: true,
+          profileCompletedAt: new Date(),
+          profileApprovalStatus: "approved",
+        },
+      });
+
+      const notifTitle = "Profile Approved!";
+      const notifMsg = "Congratulations! Your profile has been reviewed and approved by Admin.";
+
+      try {
+        await Notification.create({
+          type: "PROFILE_APPROVED",
+          toEmployee: employee._id,
+          fromAdmin: true,
+          title: notifTitle,
+          message: notifMsg,
+          metadata: {
+            url: "/emp/my-details",
+            approvedBy: adminUser.name || "Admin",
+            requestType: "profile-approval",
+          },
+        });
+
+        await sendPushNotification([employee._id], notifTitle, notifMsg, {
+          type: "PROFILE_APPROVED",
+          url: "/emp/my-details",
+        });
+      } catch (nErr) {
+        console.error("Profile approved notification error:", nErr);
+      }
+
+      return res.json({
+        success: true,
+        message: "Employee profile approved successfully",
+        data: details,
+      });
+    } else {
+      // REJECT
+      if (!remark || !remark.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "A rejection remark explaining the reason for rejection is required",
+        });
+      }
+
+      const rawFields = Array.isArray(rejectedFields) ? rejectedFields : [];
+      const formattedFields = Array.from(new Set(rawFields.map((f) => {
+        if (f === "certificate10") return "marksheet10";
+        if (f === "certificate12") return "marksheet12";
+        return f;
+      })));
+
+      details.profileApprovalStatus = "rejected";
+      details.rejectionRemark = remark.trim();
+      details.rejectedFields = formattedFields;
+      details.reviewedAt = new Date();
+      details.reviewedBy = adminUser._id;
+      await details.save();
+
+      await Employee.findByIdAndUpdate(employee._id, {
+        $set: {
+          isProfileCompleted: false,
+          profileApprovalStatus: "rejected",
+        },
+      });
+
+      const notifTitle = "Profile Verification Needs Attention";
+      const notifMsg = `Your profile was reviewed and rejected: "${remark.trim()}". Please update the requested information/document and re-submit.`;
+
+      try {
+        await Notification.create({
+          type: "PROFILE_REJECTED",
+          toEmployee: employee._id,
+          fromAdmin: true,
+          title: notifTitle,
+          message: notifMsg,
+          metadata: {
+            url: "/emp/my-details",
+            reason: remark.trim(),
+            rejectionRemark: remark.trim(),
+            rejectedFields: formattedFields,
+            rejectedBy: adminUser.name || "Admin",
+            requestType: "profile-rejection",
+          },
+        });
+
+        await sendPushNotification([employee._id], notifTitle, notifMsg, {
+          type: "PROFILE_REJECTED",
+          url: "/emp/my-details",
+          remark: remark.trim(),
+        });
+      } catch (nErr) {
+        console.error("Profile rejected notification error:", nErr);
+      }
+
+      return res.json({
+        success: true,
+        message: "Employee profile rejected with remarks",
+        data: details,
+      });
+    }
+  } catch (err) {
+    console.error("❌ adminReviewProfile error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error reviewing employee profile",
+    });
+  }
+};
+
 module.exports = {
   updateEmployeeDetails,
   getEmployeeDetails,
@@ -1787,6 +2084,7 @@ module.exports = {
   replyBirthdayWish,
   getUserSentWishes,
   getDocumentViewUrl,
+  adminReviewProfile,
 };
 
 const apiLogger = require('../utils/apiLogger');

@@ -111,6 +111,35 @@ const employeeDetailsSchema = new mongoose.Schema(
       max: 100
     },
 
+    profileApprovalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected", null],
+      default: null,
+    },
+
+    rejectionRemark: {
+      type: String,
+      default: "",
+    },
+
+    rejectedFields: {
+      type: [String],
+      default: [],
+    },
+
+    submittedForApprovalAt: {
+      type: Date
+    },
+
+    reviewedAt: {
+      type: Date,
+    },
+
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
+    },
+
     lastUpdatedAt: {
       type: Date,
       default: Date.now
