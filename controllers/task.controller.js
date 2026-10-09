@@ -267,6 +267,8 @@ async function syncPhaseToDailyWorkUpdate({
   userId,
   category,
   project,
+  workType,
+  pages,
 }) {
   try {
     if (!phaseId || !mongoose.Types.ObjectId.isValid(phaseId.toString())) return;
@@ -292,6 +294,8 @@ async function syncPhaseToDailyWorkUpdate({
       existing.updateDate = resolvedDate;
       if (category) existing.category = category;
       if (project) existing.project = project;
+      if (workType !== undefined) existing.workType = workType;
+      if (pages !== undefined) existing.pages = pages;
 
       // ✅ Never store the task ID
       existing.task = undefined;
@@ -310,6 +314,8 @@ async function syncPhaseToDailyWorkUpdate({
         updateDate: resolvedDate,
         category: category || "",
         project: project || "",
+        workType: workType || "",
+        pages: pages || [],
       });
     }
   } catch (err) {
@@ -332,6 +338,7 @@ exports.createTask = async (req, res) => {
       startDate, dueDate, endDate,
       assignedMembers, assignedStatus, status,
       phases, category, project,
+      workType, pages,
     } = req.body;
 
     // ── Validation ──
@@ -367,6 +374,17 @@ exports.createTask = async (req, res) => {
     // ── File uploads ──
     const files = req.files?.length ? await uploadFiles(req.files, empId) : [];
 
+    let parsedPages = [];
+    if (Array.isArray(pages)) {
+      parsedPages = pages;
+    } else if (typeof pages === "string" && pages.trim()) {
+      try {
+        parsedPages = JSON.parse(pages);
+      } catch (e) {
+        parsedPages = [pages];
+      }
+    }
+
     // ── Construct Clean Task Object ──
     const taskData = {
       taskTitle,
@@ -379,6 +397,8 @@ exports.createTask = async (req, res) => {
       assignedStatus: assignedStatus || "Allocated",
       category: category || "",
       project: project || "",
+      workType: (workType || "").trim(),
+      pages: parsedPages,
       createdBy: userId,
       // Setting to undefined prevents empty arrays from being stored in MongoDB
       phases: phaseArr.length > 0 ? phaseArr : undefined,
@@ -403,6 +423,8 @@ exports.createTask = async (req, res) => {
           userId: resolvedUserId,
           category: task.category,
           project: task.project,
+          workType: task.workType,
+          pages: task.pages,
         });
       }
     }
@@ -573,6 +595,23 @@ exports.updateTask = async (req, res) => {
       }
     });
 
+    if (updates.workType !== undefined) {
+      updates.workType = (updates.workType || "").trim();
+    }
+    if (updates.pages !== undefined) {
+      let parsedPages = [];
+      if (Array.isArray(updates.pages)) {
+        parsedPages = updates.pages;
+      } else if (typeof updates.pages === "string" && updates.pages.trim()) {
+        try {
+          parsedPages = JSON.parse(updates.pages);
+        } catch (e) {
+          parsedPages = [updates.pages];
+        }
+      }
+      updates.pages = parsedPages;
+    }
+
 
     /* ── Members ── */
     const currentUserIdStr = req.user?.id ? req.user.id.toString() : "";
@@ -724,17 +763,55 @@ exports.updateTask = async (req, res) => {
     if (updates.phases !== undefined) {
       const incomingPhases = parsePhases(updates.phases).map(p => ({
         ...p,
-        employeeId: p.employeeId ? new mongoose.Types.ObjectId(p.employeeId.toString()) : (req.user?.id ? new mongoose.Types.ObjectId(req.user.id.toString()) : task.createdBy),
+        ...(p._id && mongoose.Types.ObjectId.isValid(p._id)
+          ? { _id: new mongoose.Types.ObjectId(p._id.toString()) }
+          : {}),
+        employeeId: p.employeeId
+          ? (mongoose.Types.ObjectId.isValid(p.employeeId) ? new mongoose.Types.ObjectId(p.employeeId.toString()) : p.employeeId)
+          : (req.user?.id ? new mongoose.Types.ObjectId(req.user.id.toString()) : task.createdBy),
       }));
 
       // Merge: preserve existing phases belonging to other assigned members
       const existingPhases = Array.isArray(task.phases) ? task.phases : [];
-      const otherPhases = existingPhases.filter(p => {
-        const pEmpId = (p.employeeId?._id || p.employeeId || "").toString();
-        return pEmpId && pEmpId !== currentUserIdStr;
-      });
+      const incomingIds = new Set(incomingPhases.map(p => (p._id ? p._id.toString() : null)).filter(Boolean));
+      const otherPhases = isCreatorOrAdmin
+        ? []
+        : existingPhases.filter(p => {
+            const pId = p._id ? p._id.toString() : "";
+            if (pId && incomingIds.has(pId)) return false;
+            const pEmpId = (p.employeeId?._id || p.employeeId || "").toString();
+            return pEmpId && pEmpId !== currentUserIdStr;
+          });
 
       updates.phases = [...otherPhases, ...incomingPhases];
+
+      // Sync matching DailyWorkUpdate records if referenceId matches phaseId
+      for (const ip of incomingPhases) {
+        if (ip._id && mongoose.Types.ObjectId.isValid(ip._id)) {
+          try {
+            const refId = new mongoose.Types.ObjectId(ip._id.toString());
+            const incStatus = (ip.phaseStatus || "inprocess").toLowerCase();
+            const existingUpdate = await DailyWorkUpdate.findOne({ referenceId: refId });
+            if (existingUpdate) {
+              const currentStatus = (existingUpdate.status || "").toLowerCase();
+              const shouldUpdateStatus = currentStatus !== "completed" || incStatus === "completed";
+              await DailyWorkUpdate.updateOne(
+                { referenceId: refId },
+                {
+                  $set: {
+                    title: ip.phaseTitle || existingUpdate.title,
+                    description: ip.phaseDescription ?? existingUpdate.description,
+                    ...(shouldUpdateStatus && { status: incStatus }),
+                    updateDate: ip.updateDate || new Date(),
+                  }
+                }
+              );
+            }
+          } catch (syncErr) {
+            console.error("Error syncing phase to daily work update in updateTask:", syncErr);
+          }
+        }
+      }
     }
 
     /* ── Timestamp ── */
@@ -809,9 +886,11 @@ exports.updateTask = async (req, res) => {
             phaseDescription: phase.phaseDescription,
             phaseStatus: phase.phaseStatus,
             updateDate: phase.updateDate || new Date(),
-            userId: resolvedUserId,
+            userId: phase.employeeId || resolvedUserId,
             category: task.category,
             project: task.project,
+            workType: task.workType,
+            pages: task.pages,
           });
         }
       }
@@ -1499,12 +1578,30 @@ exports.deleteTask = async (req, res) => {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    const isAdmin = req.user.role === "admin";
-    const isCreator = task.createdBy.toString() === req.user.id;
+    // Only the person who assigned the task can delete it
+    const currentUserId = (req.user?.id || req.user?._id || "").toString();
+    const isCreator = task.createdBy && task.createdBy.toString() === currentUserId;
+    if (!isCreator) {
+      logResponse(CONTEXT, 403, "Only the person who assigned the task can delete it");
+      return res.status(403).json({ message: "Only the person who assigned the task can delete it" });
+    }
 
-    if (!isAdmin && !isCreator) {
-      logResponse(CONTEXT, 403, "Not authorized to delete this task");
-      return res.status(403).json({ message: "Not authorized to delete this task" });
+    // Task can only be deleted before assignee accepts it, and before moving to In Progress, Completed, etc.
+    const hasAnyAcceptedMember = (task.assignedStatus || "").toLowerCase() === "accepted" ||
+      (Array.isArray(task.memberStatuses) && task.memberStatuses.some(m => (m.assignedStatus || "").toLowerCase() === "accepted"));
+
+    const statusNormalized = (task.status || "").toLowerCase().replace(/[\s\-_]/g, "");
+    const isMoved = statusNormalized && !["assigned", "pending", "allocated"].includes(statusNormalized);
+
+    if (hasAnyAcceptedMember || isMoved) {
+      logResponse(CONTEXT, 400, "Task cannot be deleted after it has been accepted or in progress");
+      return res.status(400).json({ message: "Task cannot be deleted after it has been accepted or moved to subsequent status" });
+    }
+
+    // Delete synced daily work updates for this task's phases
+    if (task.phases?.length > 0) {
+      const phaseIds = task.phases.map(p => p._id);
+      await DailyWorkUpdate.deleteMany({ referenceId: { $in: phaseIds } });
     }
 
     await Task.findByIdAndDelete(id);
@@ -1791,6 +1888,7 @@ exports.updateTaskPhase = async (req, res) => {
       async function syncPhaseToDailyWorkUpdate({
         phaseId, phaseTitle, phaseDescription,
         phaseStatus, updateDate, userId, category, project,
+        workType, pages,
       }) {
         try {
           if (!phaseId || !mongoose.Types.ObjectId.isValid(phaseId.toString())) return;
@@ -1816,6 +1914,8 @@ exports.updateTaskPhase = async (req, res) => {
                   updateDate: resolvedDate,
                   ...(category && { category }),
                   ...(project && { project }),
+                  ...(workType !== undefined && { workType }),
+                  ...(pages !== undefined && { pages }),
                   task: undefined,
                 }
               }
@@ -1835,6 +1935,8 @@ exports.updateTaskPhase = async (req, res) => {
                   updateDate: resolvedDate,
                   category: category || "",
                   project: project || "",
+                  workType: workType || "",
+                  pages: pages || [],
                 }
               },
               { upsert: true, new: true }
@@ -1854,6 +1956,8 @@ exports.updateTaskPhase = async (req, res) => {
         userId: resolvedUserId,
         category: task.category,
         project: task.project,
+        workType: task.workType,
+        pages: task.pages,
       });
     }
 
@@ -1914,7 +2018,7 @@ exports.editAssignedTaskBeforeAccept = async (req, res) => {
       assignedMembers: [...(task.assignedMembers || [])],
     };
 
-    const { taskTitle, taskDetails, priority, dueDate, category, project, assignedMembers } = req.body;
+    const { taskTitle, taskDetails, priority, dueDate, category, project, assignedMembers, workType, pages } = req.body;
 
     const updates = {};
     if (taskTitle !== undefined) updates.taskTitle = taskTitle;
@@ -1923,6 +2027,15 @@ exports.editAssignedTaskBeforeAccept = async (req, res) => {
     if (dueDate !== undefined) updates.dueDate = dueDate === "" ? null : dueDate;
     if (category !== undefined) updates.category = category;
     if (project !== undefined) updates.project = project;
+    if (workType !== undefined) updates.workType = (workType || "").trim();
+    if (pages !== undefined) {
+      let parsedPages = [];
+      if (Array.isArray(pages)) parsedPages = pages;
+      else if (typeof pages === "string" && pages.trim()) {
+        try { parsedPages = JSON.parse(pages); } catch (e) { parsedPages = [pages]; }
+      }
+      updates.pages = parsedPages;
+    }
 
     /* ── Members ── */
     if (assignedMembers !== undefined) {

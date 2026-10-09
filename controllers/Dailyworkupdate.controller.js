@@ -131,6 +131,13 @@ exports.createDailyUpdate = async (req, res) => {
       task: undefined, // Never store the parent taskId inside the DailyWorkUpdate entry!
     };
 
+    if (!entryData.workType && parentTask?.workType) {
+      entryData.workType = parentTask.workType;
+    }
+    if ((!entryData.pages || entryData.pages.length === 0) && parentTask?.pages?.length > 0) {
+      entryData.pages = parentTask.pages;
+    }
+
 
     // 🌟 STORE REFERENCED taskPhaseId directly in entryData
     let finalPhaseId = null;
@@ -202,6 +209,8 @@ exports.createDailyUpdate = async (req, res) => {
         entry.pages = Array.isArray(pages) ? pages.map(p => String(p).trim()).filter(Boolean) : (typeof pages === "string" && pages.trim() ? [pages.trim()] : []);
       }
       if (workType !== undefined) entry.workType = (workType || "").trim();
+      if (!entry.workType && parentTask?.workType) entry.workType = parentTask.workType;
+      if ((!entry.pages || entry.pages.length === 0) && parentTask?.pages?.length > 0) entry.pages = parentTask.pages;
       await entry.save();
     } else {
       console.log(`[CreateDailyUpdate] Creating new DailyWorkUpdate entry.`);
@@ -607,8 +616,15 @@ exports.getAllDailyWorkUpdates = async (req, res) => {
 
     dailyPipeline.push({
       $project: {
-        _id: 1, description: 1, title: 1, status: 1, updateDate: 1, createdAt: 1, category: 1, project: 1, workType: 1,
-        pages: { $ifNull: ["$pages", []] },
+        _id: 1, description: 1, title: 1, status: 1, updateDate: 1, createdAt: 1, category: 1, project: 1,
+        workType: { $ifNull: ["$workType", "$taskInfo.workType", ""] },
+        pages: {
+          $cond: [
+            { $gt: [{ $size: { $ifNull: ["$pages", []] } }, 0] },
+            "$pages",
+            { $ifNull: ["$taskInfo.pages", []] }
+          ]
+        },
         referenceId: { $ifNull: ["$referenceId", null] }, taskPhaseId: { $ifNull: ["$referenceId", null] },
         userId: { _id: "$userInfo._id", name: "$userInfo.name", employeeId: "$userInfo.empId", photo: "$userInfo.photo" },
         updatedBy: { _id: "$userInfo._id", name: "$userInfo.name", employeeId: "$userInfo.empId", photo: "$userInfo.photo" },
@@ -620,7 +636,9 @@ exports.getAllDailyWorkUpdates = async (req, res) => {
           taskTitle: { $ifNull: ["$taskInfo.taskTitle", "$title"] },
           taskDetails: { $ifNull: ["$taskInfo.taskDetails", "$description"] },
           category: { $ifNull: ["$taskInfo.category", "$category"] },
-          project: { $ifNull: ["$taskInfo.project", "$project"] }
+          project: { $ifNull: ["$taskInfo.project", "$project"] },
+          workType: { $ifNull: ["$taskInfo.workType", ""] },
+          pages: { $ifNull: ["$taskInfo.pages", []] }
         }
       }
     });
@@ -811,7 +829,7 @@ exports.getStandaloneWorkUpdates = async (req, res) => {
     }
 
     const updates = await DailyWorkUpdate.find(queryFilter)
-      .populate("task", "taskTitle taskDetails category project")
+      .populate("task", "taskTitle taskDetails category project workType pages")
       .populate("userId", "name email empId photo")
       .lean();
 
@@ -837,7 +855,8 @@ exports.getStandaloneWorkUpdates = async (req, res) => {
           details: d.task?.taskDetails || d.description,
           category: d.task?.category || d.category || "",
           project: d.task?.project || d.project || "",
-          pages: d.pages || [],
+          workType: d.workType || d.task?.workType || "",
+          pages: (d.pages && d.pages.length > 0) ? d.pages : (d.task?.pages || []),
           phase: d.title,
           phaseStatus: d.status,
           note: d.description || "",

@@ -262,16 +262,17 @@ exports.addPage = async (req, res) => {
     if (!mapping.projectPages) mapping.projectPages = [];
     let projPageEntry = mapping.projectPages.find(pp => pp.project && pp.project.toLowerCase() === trimmedProj.toLowerCase());
     if (!projPageEntry) {
-      projPageEntry = { project: trimmedProj, pages: [] };
-      mapping.projectPages.push(projPageEntry);
+      mapping.projectPages.push({ project: trimmedProj, pages: [trimmedPage] });
+      projPageEntry = mapping.projectPages[mapping.projectPages.length - 1];
+    } else {
+      if (!projPageEntry.pages) projPageEntry.pages = [];
+      const alreadyExists = projPageEntry.pages.some(p => p && p.toLowerCase() === trimmedPage.toLowerCase());
+      if (alreadyExists) {
+        return res.status(409).json({ success: false, message: "Page already exists for this project" });
+      }
+      projPageEntry.pages.push(trimmedPage);
     }
 
-    const alreadyExists = (projPageEntry.pages || []).some(p => p && p.toLowerCase() === trimmedPage.toLowerCase());
-    if (alreadyExists) {
-      return res.status(409).json({ success: false, message: "Page already exists for this project" });
-    }
-
-    projPageEntry.pages.push(trimmedPage);
     mapping.markModified("projectPages");
     await mapping.save();
 
@@ -293,7 +294,9 @@ exports.addPage = async (req, res) => {
 /* ── DELETE /task-meta/page ──────────────────────────────── */
 exports.deletePage = async (req, res) => {
   try {
-    const { category, project, page } = req.body;
+    const category = req.body?.category || req.query?.category;
+    const project = req.body?.project || req.query?.project;
+    const page = req.body?.page || req.query?.page || req.body?.name || req.query?.name;
     if (!page?.trim() || !project?.trim() || !category?.trim()) {
       return res.status(400).json({ success: false, message: "Category, project, and page are required" });
     }

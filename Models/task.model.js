@@ -18,6 +18,8 @@ const taskSchema = new mongoose.Schema(
 
     category: { type: String, default: "" },
     project: { type: String, default: "" },
+    workType: { type: String, default: "" },
+    pages: [{ type: String }],
 
     status: { type: String, default: "Assigned" },
     assignedStatus: { type: String, default: "Allocated" },

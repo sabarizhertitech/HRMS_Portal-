@@ -1,5 +1,6 @@
 const EmployeeDetails = require("../Models/EmployeeDetails");
 const Employee = require("../Models/Employee");
+const CareerGap = require("../Models/CareerGap");
 const LeaveBalance = require("../Models/LeaveBalance");
 const EditRequest = require("../Models/EditRequest");
 const BirthdayWish = require("../Models/BirthdayWish");
@@ -390,6 +391,7 @@ const updateEmployeeDetails = async (req, res) => {
       "fatherName", "motherName", "fatherOccupation", "motherOccupation",
       "dateRelieved", "experience", "salary",
       "educationPath", "school10", "marks10", "school12", "marks12",
+      "passedOutYear10", "passedOutYear12",
       "aadhaarNo", "panNo", "uanNo", "pfNo",
       "bankName", "accountHolder", "accountNumber", "ifscCode",
     ];
@@ -555,6 +557,65 @@ const updateEmployeeDetails = async (req, res) => {
       usedFields.push("previousExperiences");
     }
 
+    /* ───────── CAREER GAPS (10th to 12th) ───────── */
+    if (
+      input.careerGaps !== undefined ||
+      (input.passedOutYear10 && input.passedOutYear12)
+    ) {
+      let parsedGaps = [];
+      if (input.careerGaps) {
+        try {
+          parsedGaps = typeof input.careerGaps === "string" ? JSON.parse(input.careerGaps) : input.careerGaps;
+        } catch {
+          parsedGaps = [];
+        }
+      }
+      if (!Array.isArray(parsedGaps) && parsedGaps && typeof parsedGaps === "object") {
+        parsedGaps = [parsedGaps];
+      }
+
+      const p10 = input.passedOutYear10 || (details ? details.passedOutYear10 : "");
+      const p12 = input.passedOutYear12 || (details ? details.passedOutYear12 : "");
+      const y10Num = parseInt(p10, 10);
+      const y12Num = parseInt(p12, 10);
+      const expected12th = y10Num + 2;
+      const gapYears = y12Num - expected12th;
+      const hasGap = !isNaN(y10Num) && !isNaN(y12Num) && gapYears > 0;
+
+      // Only save when gap exists AND employee provided a valid non-empty reason
+      const validGaps = (Array.isArray(parsedGaps) ? parsedGaps : [])
+        .filter((gap) => {
+          if (!gap) return false;
+          const reason = (gap.reason || "").toString().trim();
+          const duration = Number(gap.gapDuration) || gapYears;
+          return hasGap && duration > 0 && reason.length > 0;
+        })
+        .map((gap) => ({
+          employeeId: employee._id,
+          educationStage: gap.educationStage || "10th to 12th Standard",
+          passedOutYear10: String(gap.passedOutYear10 || p10 || ""),
+          expectedYear12: String(gap.expectedYear12 || expected12th),
+          actualYear12: String(gap.actualYear12 || p12 || ""),
+          gapDuration: Number(gap.gapDuration) || gapYears,
+          reason: String(gap.reason || "").trim(),
+          createdAt: gap.createdAt || new Date(),
+        }));
+
+      // Set clean careerGaps on updateData - never null or empty objects
+      updateData.careerGaps = validGaps;
+
+      // Sync to CareerGap collection
+      try {
+        await CareerGap.deleteMany({ employeeId: employee._id, educationStage: "10th to 12th Standard" });
+        if (validGaps.length > 0) {
+          await CareerGap.insertMany(validGaps.map(g => ({ ...g, empIdString: employee.empId, employeeId: employee._id })));
+        }
+      } catch (err) {
+        console.error("Error syncing CareerGap collection:", err);
+      }
+      usedFields.push("careerGaps");
+    }
+
     /* ───────── COURSES + CERTIFICATES ───────── */
     if (
       input.courses &&
@@ -592,6 +653,7 @@ const updateEmployeeDetails = async (req, res) => {
           if (!certificateKey && !course.certificate) {
             const match =
               existingCourses.find((ec) =>
+
                 (ec._id && course._id && String(ec._id) === String(course._id)) ||
                 (ec.id && course.id && String(ec.id) === String(course.id)) ||
                 (ec.courseType && course.courseType && ec.courseType === course.courseType)
@@ -936,6 +998,21 @@ const getEmployeeDetails = async (req, res) => {
       }
     }
 
+    // Clean career gaps (ensure no empty/null records)
+    if (!responseData.careerGaps || responseData.careerGaps.length === 0) {
+      try {
+        const foundGaps = await CareerGap.find({ employeeId: employee._id });
+        if (foundGaps && foundGaps.length > 0) {
+          responseData.careerGaps = foundGaps;
+        }
+      } catch (e) {}
+    }
+    if (Array.isArray(responseData.careerGaps)) {
+      responseData.careerGaps = responseData.careerGaps.filter(
+        (g) => g && (Number(g.gapDuration) > 0) && g.reason && g.reason.trim().length > 0
+      );
+    }
+
     // ✅ Attach signed S3 URLs safely
     responseData = await attachSignedUrls(responseData);
 
@@ -1207,7 +1284,7 @@ const adminUpdateEmployee = async (req, res) => {
       }
     }
     /* ── Safe JSON parsing ── */
-    const jsonFields = ["siblings", "previousExperiences", "courses"];
+    const jsonFields = ["siblings", "previousExperiences", "courses", "careerGaps"];
     jsonFields.forEach((field) => {
       if (update[field] && typeof update[field] === "string") {
         try {
@@ -1217,6 +1294,46 @@ const adminUpdateEmployee = async (req, res) => {
         }
       }
     });
+
+    /* ── Career Gaps handling in adminUpdateEmployee ── */
+    if (update.careerGaps !== undefined || (update.passedOutYear10 && update.passedOutYear12)) {
+      let parsedGaps = Array.isArray(update.careerGaps) ? update.careerGaps : [];
+      const p10 = update.passedOutYear10 || (details ? details.passedOutYear10 : "");
+      const p12 = update.passedOutYear12 || (details ? details.passedOutYear12 : "");
+      const y10Num = parseInt(p10, 10);
+      const y12Num = parseInt(p12, 10);
+      const expected12th = y10Num + 2;
+      const gapYears = y12Num - expected12th;
+      const hasGap = !isNaN(y10Num) && !isNaN(y12Num) && gapYears > 0;
+
+      const validGaps = (Array.isArray(parsedGaps) ? parsedGaps : [])
+        .filter((gap) => {
+          if (!gap) return false;
+          const reason = (gap.reason || "").toString().trim();
+          const duration = Number(gap.gapDuration) || gapYears;
+          return hasGap && duration > 0 && reason.length > 0;
+        })
+        .map((gap) => ({
+          employeeId: employee._id,
+          educationStage: gap.educationStage || "10th to 12th Standard",
+          passedOutYear10: String(gap.passedOutYear10 || p10 || ""),
+          expectedYear12: String(gap.expectedYear12 || expected12th),
+          actualYear12: String(gap.actualYear12 || p12 || ""),
+          gapDuration: Number(gap.gapDuration) || gapYears,
+          reason: String(gap.reason || "").trim(),
+          createdAt: gap.createdAt || new Date(),
+        }));
+
+      update.careerGaps = validGaps;
+      try {
+        await CareerGap.deleteMany({ employeeId: employee._id, educationStage: "10th to 12th Standard" });
+        if (validGaps.length > 0) {
+          await CareerGap.insertMany(validGaps.map(g => ({ ...g, empIdString: employee.empId, employeeId: employee._id })));
+        }
+      } catch (err) {
+        console.error("Error syncing CareerGap in adminUpdateEmployee:", err);
+      }
+    }
 
     /* ── Fix numbers ── */
     if (update.salary !== undefined) {
@@ -1523,6 +1640,21 @@ const getEmployeeByEmpIdString = async (req, res) => {
         if (!responseData.ifscCode) responseData.ifscCode = activeBank.ifscCode;
         if (!responseData.branch) responseData.branch = activeBank.branch;
       }
+    }
+
+    // Clean career gaps (ensure no empty/null records)
+    if (!responseData.careerGaps || responseData.careerGaps.length === 0) {
+      try {
+        const foundGaps = await CareerGap.find({ employeeId: employee._id });
+        if (foundGaps && foundGaps.length > 0) {
+          responseData.careerGaps = foundGaps;
+        }
+      } catch (e) {}
+    }
+    if (Array.isArray(responseData.careerGaps)) {
+      responseData.careerGaps = responseData.careerGaps.filter(
+        (g) => g && (Number(g.gapDuration) > 0) && g.reason && g.reason.trim().length > 0
+      );
     }
 
     responseData = await attachSignedUrls(responseData);

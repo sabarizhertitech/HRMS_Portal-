@@ -15,7 +15,7 @@ const uploadToS3 = async (buffer, key, contentType) => {
   await s3.send(command);
 
   // 🔥 remove old cached signed url
-  await redisClient.del(`s3url:${key}`);
+      await redisClient.del(`s3url:${key}`);
 
   return key;
 };

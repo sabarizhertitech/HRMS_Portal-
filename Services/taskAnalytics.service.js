@@ -24,6 +24,57 @@ const {
 } = require("../utils/taskAnalytics.utils");
 
 /**
+ * Safely extracts a clean ObjectId hex string from an ID or populated document.
+ */
+function extractIdString(val) {
+  if (!val) return "";
+  if (typeof val === "string") return val.trim();
+  if (typeof val === "object") {
+    if (val._id) return String(val._id).trim();
+    if (typeof val.toString === "function") {
+      const s = val.toString();
+      if (s !== "[object Object]") return s.trim();
+    }
+  }
+  return String(val).trim();
+}
+
+/**
+ * Determines whether a task was worked on by the given employee.
+ * A task belongs to an employee's analytics if:
+ * 1. The employee is in assignedMembers
+ * 2. Or the employee is in memberStatuses
+ * 3. Or it is a self-created task with NO other team members assigned.
+ * Tasks assigned by an employee to other team members are strictly excluded from the assigner's analytics.
+ */
+function isWorkedOnByEmployee(task, targetEmployeeId) {
+  if (!task || !targetEmployeeId) return false;
+  const targetIdStr = extractIdString(targetEmployeeId);
+  if (!targetIdStr) return false;
+
+  // Check if target employee is in assignedMembers
+  const assignedList = Array.isArray(task.assignedMembers) ? task.assignedMembers : [];
+  const assignedIds = assignedList.map(extractIdString).filter(Boolean);
+  if (assignedIds.includes(targetIdStr)) return true;
+
+  // Check if target employee is in memberStatuses
+  const memberStatusesList = Array.isArray(task.memberStatuses) ? task.memberStatuses : [];
+  const memberStatusIds = memberStatusesList.map((ms) => extractIdString(ms?.employeeId)).filter(Boolean);
+  if (memberStatusIds.includes(targetIdStr)) return true;
+
+  // If the task has any other assigned members, it was assigned to others -> exclude for assigner
+  const hasOtherAssignees = assignedIds.some((id) => id !== targetIdStr);
+  const hasOtherMemberStatuses = memberStatusIds.some((id) => id !== targetIdStr);
+  if (hasOtherAssignees || hasOtherMemberStatuses) {
+    return false;
+  }
+
+  // Self-created task with no other members assigned
+  const creatorId = extractIdString(task.createdBy);
+  return creatorId === targetIdStr;
+}
+
+/**
  * Format relative activity timestamps (e.g. "Today at 10:15 AM", "Yesterday at 4:30 PM", "Sep 18 at 2:00 PM")
  */
 function formatActivityTime(dateInput) {
@@ -331,12 +382,23 @@ async function getEmployeePerformance(employeeId, filters = {}) {
     emp.status !== "relieved" &&
     emp.status !== "relived";
 
-  // 2. Build Query for Employee Tasks
+  // 2. Build Query for Employee Tasks (strictly tasks worked on by this employee)
   const query = {
     $or: [
       { assignedMembers: empObjId },
       { "memberStatuses.employeeId": empObjId },
-      { createdBy: empObjId },
+      {
+        $and: [
+          { createdBy: empObjId },
+          {
+            $or: [
+              { assignedMembers: { $exists: false } },
+              { assignedMembers: { $size: 0 } },
+              { assignedMembers: empObjId },
+            ],
+          },
+        ],
+      },
     ],
   };
 
@@ -358,21 +420,28 @@ async function getEmployeePerformance(employeeId, filters = {}) {
   }
 
   // 3. Fetch Tasks
-  const rawTasks = await Task.find(query)
+  let rawTasks = await Task.find(query)
     .populate("assignedMembers", "_id name employeeName firstName lastName role department profileImage avatar photo empId")
     .populate("createdBy", "_id name employeeName firstName lastName")
     .sort({ createdDate: -1, createdAt: -1 })
     .lean();
 
-  const now = new Date();
+  // Strict check: Only include tasks worked on by this employee
+  rawTasks = rawTasks.filter((task) => isWorkedOnByEmployee(task, empObjId));
 
-  // 4. Calculate Individual Task Metrics
-  const mappedTasks = rawTasks.map((task) => {
+  // Self-created task fallback: if assignedMembers is missing or empty, assign to createdBy
+  rawTasks.forEach((task) => {
     if (!task.assignedMembers || task.assignedMembers.length === 0) {
       if (task.createdBy) {
         task.assignedMembers = [task.createdBy];
       }
     }
+  });
+
+  const now = new Date();
+
+  // 4. Calculate Individual Task Metrics
+  const mappedTasks = rawTasks.map((task) => {
     return calculateEmployeeTaskMetrics(task, empObjId, now);
   });
 
@@ -1000,12 +1069,24 @@ async function getLegacyTaskAnalytics(filters = {}, userRole = "", isHr = false,
   const query = {};
 
   // 1. Role-Based Scoping & Employee / Department / Designation Filtering
+  // Tasks assigned by an employee to other team members are strictly excluded from assigner's analytics
   if (isEmployeeScope && currentUserId) {
     const curObjId = new mongoose.Types.ObjectId(currentUserId);
     query.$or = [
       { assignedMembers: curObjId },
       { "memberStatuses.employeeId": curObjId },
-      { createdBy: curObjId },
+      {
+        $and: [
+          { createdBy: curObjId },
+          {
+            $or: [
+              { assignedMembers: { $exists: false } },
+              { assignedMembers: { $size: 0 } },
+              { assignedMembers: curObjId },
+            ],
+          },
+        ],
+      },
     ];
   } else if (filters.employeeId && filters.employeeId.trim() && filters.employeeId !== "all") {
     const empIdTrim = filters.employeeId.trim();
@@ -1014,11 +1095,33 @@ async function getLegacyTaskAnalytics(filters = {}, userRole = "", isHr = false,
       ...(empObjId ? [
         { assignedMembers: empObjId },
         { "memberStatuses.employeeId": empObjId },
-        { createdBy: empObjId },
+        {
+          $and: [
+            { createdBy: empObjId },
+            {
+              $or: [
+                { assignedMembers: { $exists: false } },
+                { assignedMembers: { $size: 0 } },
+                { assignedMembers: empObjId },
+              ],
+            },
+          ],
+        },
       ] : []),
       { assignedMembers: empIdTrim },
       { "memberStatuses.employeeId": empIdTrim },
-      { createdBy: empIdTrim },
+      {
+        $and: [
+          { createdBy: empIdTrim },
+          {
+            $or: [
+              { assignedMembers: { $exists: false } },
+              { assignedMembers: { $size: 0 } },
+              { assignedMembers: empIdTrim },
+            ],
+          },
+        ],
+      },
     ];
   } else if (
     (filters.department && filters.department.trim() && filters.department !== "all") ||
@@ -1099,6 +1202,7 @@ async function getLegacyTaskAnalytics(filters = {}, userRole = "", isHr = false,
     ];
     if (query.$or) {
       query.$and = [
+        ...(query.$and || []),
         { $or: query.$or },
         { $or: dateOr },
       ];
@@ -1109,11 +1213,19 @@ async function getLegacyTaskAnalytics(filters = {}, userRole = "", isHr = false,
   }
 
   // 6. Fetch raw tasks
-  const rawTasks = await Task.find(query)
+  let rawTasks = await Task.find(query)
     .populate("assignedMembers", "_id name employeeName firstName lastName email role department profileImage avatar photo empId")
     .populate("createdBy", "_id name employeeName firstName lastName email role photo empId")
     .sort({ createdDate: -1, createdAt: -1 })
     .lean();
+
+  // Strict check: Only include tasks worked on by the target employee
+  // Tasks assigned by an employee to other team members are strictly excluded from assigner's analytics
+  if (isEmployeeScope && currentUserId) {
+    rawTasks = rawTasks.filter((t) => isWorkedOnByEmployee(t, currentUserId));
+  } else if (filters.employeeId && filters.employeeId.trim() && filters.employeeId !== "all") {
+    rawTasks = rawTasks.filter((t) => isWorkedOnByEmployee(t, filters.employeeId.trim()));
+  }
 
   // Self-created task fallback: if assignedMembers is missing or empty, assign to createdBy
   rawTasks.forEach((t) => {
@@ -1718,21 +1830,46 @@ async function getEmployeePerformanceDetailsLegacy(req, res) {
     }
     const isActive = emp.employmentStatus !== "relieved" && emp.employmentStatus !== "relived" && emp.status !== "relieved" && emp.status !== "relived";
 
-    // 2. Fetch all tasks assigned to this employee (or created by them)
-    const tasks = await Task.find({
+    // 2. Fetch all tasks assigned to this employee (or created by them for themselves)
+    const rawTasks = await Task.find({
       $or: [
         { assignedMembers: empObjId },
         { "memberStatuses.employeeId": empObjId },
-        { createdBy: empObjId },
+        {
+          $and: [
+            { createdBy: empObjId },
+            {
+              $or: [
+                { assignedMembers: { $exists: false } },
+                { assignedMembers: { $size: 0 } },
+                { assignedMembers: empObjId },
+              ],
+            },
+          ],
+        },
         { assignedMembers: empIdStr },
         { "memberStatuses.employeeId": empIdStr },
-        { createdBy: empIdStr },
+        {
+          $and: [
+            { createdBy: empIdStr },
+            {
+              $or: [
+                { assignedMembers: { $exists: false } },
+                { assignedMembers: { $size: 0 } },
+                { assignedMembers: empIdStr },
+              ],
+            },
+          ],
+        },
       ],
     })
     .populate("assignedMembers", "_id name employeeName firstName lastName profileImage avatar photo role department empId email")
     .populate("createdBy", "_id name employeeName firstName lastName profileImage avatar photo role department empId email")
     .sort({ createdAt: -1 })
     .lean();
+
+    // Filter tasks strictly to those worked on by this employee
+    const tasks = rawTasks.filter((t) => isWorkedOnByEmployee(t, empObjId));
 
     const now = new Date();
 

@@ -70,10 +70,32 @@ const employeeDetailsSchema = new mongoose.Schema(
     school10: String,
     marks10: String,
     marksheet10: String,
+    passedOutYear10: String,
 
     school12: String,
     marks12: String,
     marksheet12: String,
+    passedOutYear12: String,
+
+    careerGaps: [{
+      employeeId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Employee",
+      },
+      educationStage: {
+        type: String,
+        default: "10th to 12th Standard",
+      },
+      passedOutYear10: String,
+      expectedYear12: String,
+      actualYear12: String,
+      gapDuration: Number,
+      reason: String,
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
 
     courses: [{
       courseType: {
